@@ -1,5 +1,4 @@
-<?php 
-
+<?php
 
 namespace App\Http\Controllers;
 
@@ -10,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
+    protected $perPage = 10;
+
     public function create()
     {
         return view('users.create');
@@ -57,52 +58,149 @@ class UserController extends Controller
         return redirect()->route('dashboard')->with('success', 'User deleted successfully!');
     }
 
-
     public function index(Request $request)
     {
         $dateInput = $request->input('date');
         $date = $dateInput && strtotime($dateInput) ? Carbon::parse($dateInput) : null;
     
+        [$start, $end] = $this->resolveDateRange($request);
+    
+        // Apply filters
         $query = User::query();
+    
         if ($date) {
             $query->whereDate('createdDateTime', $date);
         }
-        $users = $query->paginate(10);
     
-        return view('dashboard', compact('users', 'date'));
-    }
-
-    public function show(Request $request, $id)
-    {
-        $user = User::findOrFail($id);
-    
-        $query = $user->signIns();
-    
-        // Handle date filtering
-        if ($request->has('range')) {
-            if ($request->input('range') === 'last_month') {
-                $start = now()->subMonth()->startOfMonth();
-                $end = now()->subMonth()->endOfMonth();
-            } else {
-                // Default this month
-                $start = now()->startOfMonth();
-                $end = now()->endOfMonth();
-            }
-        } elseif ($request->has('date')) {
-            $start = Carbon::parse($request->input('date'))->startOfDay();
-            $end = Carbon::parse($request->input('date'))->endOfDay();
-        } else {
-            // Default to this month
-            $start = now()->startOfMonth();
-            $end = now()->endOfMonth();
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('displayName', 'like', "%{$search}%")
+                  ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                  ->orWhere('mail1', 'like', "%{$search}%")
+                  ->orWhere('mail2', 'like', "%{$search}%");
+            });
         }
     
-        $signIns = $query->whereBetween('date_utc', [$start, $end])
-                    ->orderByDesc('date_utc')
-                    ->paginate(15)
-                    ->withQueryString();
+        // Include login count within date range
+        $query->withCount(['signIns as login_count' => function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        }]);
     
-        return view('user-details', compact('user', 'signIns', 'start', 'end'));
+        $users = $query->paginate(10)->withQueryString();
+    
+        // Calculate total logged in and not logged in counts
+        $loggedInCount = User::whereHas('signIns', function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        })->count();
+    
+        $notLoggedInCount = User::whereDoesntHave('signIns', function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        })->count();
+    
+        return view('dashboard', compact('users', 'date', 'loggedInCount', 'notLoggedInCount'));
     }
+    
+    
+
+    public function show($id)
+    {
+        $user = User::findOrFail($id);
+        $signIns = $user->signInsPaginated()->paginate($this->perPage);
+
+        return view('user-details', compact('user', 'signIns'));
+    }
+
+    public function loggedInUsers(Request $request)
+    {
+        [$start, $end] = $this->resolveDateRange($request);
+        $search = $request->input('search');
+    
+        $query = User::whereHas('signIns', function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        });
+    
+        // Apply search if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('displayName', 'like', "%{$search}%")
+                  ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                  ->orWhere('mail1', 'like', "%{$search}%")
+                  ->orWhere('mail2', 'like', "%{$search}%");
+            });
+        }
+    
+        $users = $query->withCount(['signIns as login_count' => function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        }])->paginate(10)->withQueryString();
+    
+        return view('users.logged-in', [
+            'users' => $users,
+            'range' => $request->input('range', 'this_month'),
+            'search' => $search
+        ]);
+    }
+    
+
+    public function notLoggedInUsers(Request $request)
+    {
+        [$start, $end] = $this->resolveDateRange($request);
+        $search = $request->input('search');
+    
+        $query = User::whereDoesntHave('signIns', function ($q) use ($start, $end) {
+            $q->whereBetween('date_utc', [$start, $end]);
+        });
+    
+        // Apply search if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('displayName', 'like', "%{$search}%")
+                  ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                  ->orWhere('mail1', 'like', "%{$search}%")
+                  ->orWhere('mail2', 'like', "%{$search}%");
+            });
+        }
+    
+        $users = $query->paginate(10)->withQueryString();
+    
+        return view('users.not-logged-in', [
+            'users' => $users,
+            'range' => $request->input('range', 'this_month'),
+            'search' => $search
+        ]);
+    }
+    
+
+    protected function resolveDateRange($input = null)
+    {
+        if ($input instanceof Request) {
+            if ($input->has('range')) {
+                return $this->resolveDateRange($input->input('range'));
+            } elseif ($input->has('date') && strtotime($input->input('date'))) {
+                $date = Carbon::parse($input->input('date'));
+                return [$date->startOfDay(), $date->endOfDay()];
+            } else {
+                return [now()->startOfMonth(), now()->endOfDay()];
+            }
+        }
+
+        switch ($input) {
+            case 'last_month':
+                $start = now()->subMonthNoOverflow()->startOfMonth();
+                $end = now()->subMonthNoOverflow()->endOfMonth();
+                break;
+            case 'last_3_months':
+                $start = now()->subMonthsNoOverflow(3)->startOfMonth();
+                $end = now()->endOfDay();
+                break;
+            default:
+                $start = now()->startOfMonth();
+                $end = now()->endOfDay();
+        }
+
+        return [$start, $end];
+    }
+
+
     
 }
