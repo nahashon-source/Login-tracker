@@ -33,4 +33,16 @@ class InteractiveSignIn extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // Scope: Last 30 days
+    public function scopeLast30Days($query)
+    {
+        return $query->where('date_utc', '>=', now()->subDays(30));
+    }
+
+    // Scope: Order latest first
+    public function scopeLatestFirst($query)
+    {
+        return $query->orderBy('date_utc', 'desc');
+    }
 }
