@@ -10,11 +10,16 @@ return new class extends Migration
     {
         Schema::create('interactive_sign_ins', function (Blueprint $table) {
             $table->id();
+
             $table->timestamp('date_utc')->nullable();
             $table->string('request_id')->nullable();
             $table->text('user_agent')->nullable();
             $table->string('correlation_id')->nullable();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+
+            // FK to users.id
+            $table->string('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+
             $table->string('user')->nullable();
             $table->string('username')->nullable();
             $table->string('user_type')->nullable();
@@ -65,6 +70,7 @@ return new class extends Migration
             $table->string('associated_resource_id')->nullable();
             $table->string('federated_token_id')->nullable();
             $table->string('federated_token_issuer')->nullable();
+
             $table->timestamps();
         });
     }

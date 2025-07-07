@@ -9,13 +9,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id(); // Auto-incrementing primary key
+            // External GUID/UUID string-based primary key
+            $table->string('id')->primary();
+
             $table->string('userPrincipalName')->unique();
             $table->string('displayName')->nullable();
-            $table->string('surname')->nullable();
-            $table->string('mail')->nullable();
-            $table->string('givenName')->nullable();
-            $table->string('id')->nullable(); // Non-auto-incrementing ID field as requested
+            $table->string('surname1')->nullable();
+            $table->string('surname2')->nullable();
+            $table->string('mail1')->nullable();
+            $table->string('mail2')->nullable();
+            $table->string('givenName1')->nullable();
+            $table->string('givenName2')->nullable();
             $table->string('userType')->nullable();
             $table->string('jobTitle')->nullable();
             $table->string('department')->nullable();
@@ -39,6 +43,7 @@ return new class extends Migration
             $table->string('invitationState')->nullable();
             $table->string('identityIssuer')->nullable();
             $table->timestamp('createdDateTime')->nullable();
+
             $table->timestamps();
         });
     }
