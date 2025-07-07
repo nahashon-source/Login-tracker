@@ -72,13 +72,37 @@ class UserController extends Controller
         return view('dashboard', compact('users', 'date'));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $signIns = $user->signInsPaginated()->paginate(10);
-
-        return view('user-details', compact('user', 'signIns'));
-
-
+    
+        $query = $user->signIns();
+    
+        // Handle date filtering
+        if ($request->has('range')) {
+            if ($request->input('range') === 'last_month') {
+                $start = now()->subMonth()->startOfMonth();
+                $end = now()->subMonth()->endOfMonth();
+            } else {
+                // Default this month
+                $start = now()->startOfMonth();
+                $end = now()->endOfMonth();
+            }
+        } elseif ($request->has('date')) {
+            $start = Carbon::parse($request->input('date'))->startOfDay();
+            $end = Carbon::parse($request->input('date'))->endOfDay();
+        } else {
+            // Default to this month
+            $start = now()->startOfMonth();
+            $end = now()->endOfMonth();
+        }
+    
+        $signIns = $query->whereBetween('date_utc', [$start, $end])
+                    ->orderByDesc('date_utc')
+                    ->paginate(15)
+                    ->withQueryString();
+    
+        return view('user-details', compact('user', 'signIns', 'start', 'end'));
     }
+    
 }

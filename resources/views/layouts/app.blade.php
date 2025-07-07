@@ -20,9 +20,9 @@
                 <li class="nav-item">
                     <a class="nav-link text-white" href="{{ route('dashboard') }}">Dashboard</a>
                 </li>
-                <li class="nav-item">
+                {{-- <li class="nav-item">
                     <a class="nav-link text-white" href="{{ route('activity.report') }}">Activity Report</a>
-                </li>
+                </li> --}}
             </ul>
         </div>
     </div>

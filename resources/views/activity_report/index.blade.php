@@ -5,9 +5,7 @@
 
     <h1 class="mb-4">User Activity Report</h1>
 
-    <div class="mb-3">
-        <a href="{{ route('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
-    </div>
+    
 
     <!-- Date Filter Form -->
     <form method="GET" action="{{ route('activity.report') }}" class="mb-4">
