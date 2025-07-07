@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
@@ -54,5 +55,30 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('dashboard')->with('success', 'User deleted successfully!');
+    }
+
+
+    public function index(Request $request)
+    {
+        $dateInput = $request->input('date');
+        $date = $dateInput && strtotime($dateInput) ? Carbon::parse($dateInput) : null;
+    
+        $query = User::query();
+        if ($date) {
+            $query->whereDate('createdDateTime', $date);
+        }
+        $users = $query->paginate(10);
+    
+        return view('dashboard', compact('users', 'date'));
+    }
+
+    public function show($id)
+    {
+        $user = User::findOrFail($id);
+        $signIns = $user->signInsPaginated()->paginate(10);
+
+        return view('user-details', compact('user', 'signIns'));
+
+
     }
 }

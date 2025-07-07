@@ -7,84 +7,105 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container mt-5">
-        <h1>Login Tracker Dashboard</h1>
-        <a href="{{ route('users.create') }}" class="btn btn-success mb-3">Add User</a>
-        <a href="/imports" class="btn btn-primary mb-3">Import Data</a>
-        @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
-        <form method="GET" action="{{ route('dashboard') }}" class="mb-3">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="date" class="form-label">Filter by Date</label>
-                    <input type="date" class="form-control" id="date" name="date" value="{{ $date ? $date->toDateString() : '' }}">
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary mt-4">Filter</button>
-                </div>
+<div class="container mt-5">
+    <h1 class="mb-4">Login Tracker Dashboard</h1>
+
+    <div class="mb-3">
+        <a href="{{ route('users.create') }}" class="btn btn-success">Add User</a>
+        <a href="/imports" class="btn btn-primary">Import Data</a>
+    </div>
+
+    @if (session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @elseif (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+
+    <!-- Filters -->
+    <form method="GET" action="{{ route('dashboard') }}" class="mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label for="range" class="form-label">Date Range:</label>
+                <select name="range" id="range" class="form-select">
+                    <option value="">-- Select Range --</option>
+                    <option value="this_month" {{ request('range') == 'this_month' ? 'selected' : '' }}>This Month</option>
+                    <option value="last_month" {{ request('range') == 'last_month' ? 'selected' : '' }}>Last Month</option>
+                    <option value="last_3_months" {{ request('range') == 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
+                </select>
             </div>
-        </form>
-        <table class="table table-striped">
-            <thead>
+
+            <div class="col-md-3">
+                <label for="system" class="form-label">System:</label>
+                <select name="system" id="system" class="form-select">
+                    <option value="">-- All Systems --</option>
+                    @foreach (['SCM', 'Odoo', 'D365 Live', 'Fit Express', 'FIT ERP', 'Fit Express UAT', 'FITerp UAT', 'OPS', 'OPS UAT'] as $sys)
+                        <option value="{{ $sys }}" {{ request('system') == $sys ? 'selected' : '' }}>{{ $sys }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-md-3 align-self-end">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{{ route('dashboard') }}" class="btn btn-secondary">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    @if ($users->isEmpty())
+        <div class="alert alert-info">No users found. Please import users or check the database.</div>
+    @else
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
                 <tr>
                     <th>ID</th>
-                    <th>User</th>
-                    <th>Surname 1</th>
-                    <th>Surname 2</th>
-                    <th>Email 1</th>
-                    <th>Email 2</th>
-                    <th>Given Name 1</th>
-                    <th>Given Name 2</th>
-                    <th>Login Count (Last 30 Days)</th>
-                    <th>Login Times</th>
-                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Email (UPN)</th>
+                    <th>Logins</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($users as $user)
                     <tr>
-                        <td>{{ $user->id ?? 'N/A' }}</td>
-                        <td>{{ $user->displayName ?? $user->userPrincipalName }}</td>
-                        <td>{{ $user->surname1 ?? 'N/A' }}</td>
-                        <td>{{ $user->surname2 ?? 'N/A' }}</td>
-                        <td>{{ $user->mail1 ?? 'N/A' }}</td>
-                        <td>{{ $user->mail2 ?? 'N/A' }}</td>
-                        <td>{{ $user->givenName1 ?? 'N/A' }}</td>
-                        <td>{{ $user->givenName2 ?? 'N/A' }}</td>
-                        <td>{{ $user->sign_ins_count }}</td>
+                        <td>{{ $user->id }}</td>
+                        <td>{{ $user->displayName ?? 'N/A' }}</td>
+                        <td>{{ $user->userPrincipalName ?? 'N/A' }}</td>
                         <td>
-                            @if ($user->sign_ins_count > 0)
-                                <ul>
-                                    @foreach ($user->signIns as $signIn)
-                                        <li>{{ $signIn->date_utc }}</li>
-                                    @endforeach
+                            <span class="badge bg-secondary">Count: {{ $user->login_count ?? 0 }}</span><br>
+                            <small>Last: {{ $user->last_login_at?->format('Y-m-d') ?? 'N/A' }}</small>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('users.show', $user->id) }}">View</a>
+                                    </li>
+                                    <li>
+                                        <form action="{{ route('users.destroy', $user->id) }}" method="POST"
+                                              onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="dropdown-item text-danger">Delete</button>
+                                        </form>
+                                    </li>
                                 </ul>
-                            @else
-                                No logins in the last 30 days
-                            @endif
-                        </td>
-                        <td>
-                            @if ($user->sign_ins_count > 0)
-                                Last login: {{ $user->signIns->first()->date_utc ?? 'N/A' }}
-                            @else
-                                Never logged in
-                            @endif
-                        </td>
-                        <td>
-                            <form action="{{ route('users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this user?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                            </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-        {{ $users->links() }}
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        <!-- Pagination -->
+        <div class="mt-4">
+            {{ $users->withQueryString()->links() }}
+        </div>
+    @endif
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -3,15 +3,41 @@
 namespace App\Imports;
 
 use App\Models\InteractiveSignIn;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Carbon\Carbon;
 
 class InteractiveSignInsImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
+        // Normalize headers
+        $row = array_change_key_case($row, CASE_LOWER);
+
+        // Validate required fields
+        $validator = Validator::make($row, [
+            'date_utc' => 'required',
+            'user_id' => 'required',
+            'status' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            Log::channel('import')->warning('InteractiveSignIn row validation failed', $validator->errors()->toArray());
+            return null;
+        }
+
+        // Parse date safely
+        $dateUTC = null;
+        try {
+            $dateUTC = Carbon::parse($row['date_utc'])->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            Log::channel('import')->warning("Invalid date format for UserID {$row['user_id']}");
+        }
+
         return new InteractiveSignIn([
-            'date_utc' => $row['date_utc'],
+            'date_utc' => $dateUTC,
             'request_id' => $row['request_id'],
             'user_agent' => $row['user_agent'],
             'correlation_id' => $row['correlation_id'],
@@ -25,7 +51,7 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
             'unique_token_identifier' => $row['unique_token_identifier'],
             'original_transfer_method' => $row['original_transfer_method'],
             'client_credential_type' => $row['client_credential_type'],
-            'token_protection_sign_in_session' => $row['token_protection_sign_in_session'] === 'true',
+            'token_protection_sign_in_session' => filter_var($row['token_protection_sign_in_session'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
             'application' => $row['application'],
             'application_id' => $row['application_id'],
             'resource' => $row['resource'],
@@ -43,8 +69,8 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
             'device_id' => $row['device_id'],
             'browser' => $row['browser'],
             'operating_system' => $row['operating_system'],
-            'compliant' => $row['compliant'] === 'true',
-            'managed' => $row['managed'] === 'true',
+            'compliant' => filter_var($row['compliant'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+            'managed' => filter_var($row['managed'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
             'join_type' => $row['join_type'],
             'multifactor_authentication_result' => $row['multifactor_authentication_result'],
             'multifactor_authentication_auth_method' => $row['multifactor_authentication_auth_method'],
@@ -53,14 +79,14 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
             'sign_in_identifier' => $row['sign_in_identifier'],
             'session_id' => $row['session_id'],
             'ip_address_seen_by_resource' => $row['ip_address_seen_by_resource'],
-            'through_global_secure_access' => $row['through_global_secure_access'] === 'true',
+            'through_global_secure_access' => filter_var($row['through_global_secure_access'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
             'global_secure_access_ip_address' => $row['global_secure_access_ip_address'],
             'autonomous_system_number' => $row['autonomous_system_number'],
-            'flagged_for_review' => $row['flagged_for_review'] === 'true',
+            'flagged_for_review' => filter_var($row['flagged_for_review'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
             'token_issuer_type' => $row['token_issuer_type'],
             'incoming_token_type_duplicate' => $row['incoming_token_type_duplicate'],
             'token_issuer_name' => $row['token_issuer_name'],
-            'latency' => $row['latency'],
+            'latency' => is_numeric($row['latency']) ? $row['latency'] : null,
             'conditional_access' => $row['conditional_access'],
             'managed_identity_type' => $row['managed_identity_type'],
             'associated_resource_id' => $row['associated_resource_id'],
