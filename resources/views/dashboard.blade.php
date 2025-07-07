@@ -1,18 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Tracker Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<div class="container mt-5">
+@extends('layouts.app')
+
+@section('content')
+<div class="container mt-4">
     <h1 class="mb-4">Login Tracker Dashboard</h1>
 
     <div class="mb-3">
         <a href="{{ route('users.create') }}" class="btn btn-success">Add User</a>
         <a href="/imports" class="btn btn-primary">Import Data</a>
+        <a href="{{ route('activity.report') }}" class="btn btn-info">Activity Report</a>
     </div>
 
     @if (session('success'))
@@ -24,22 +19,32 @@
     <!-- Filters -->
     <form method="GET" action="{{ route('dashboard') }}" class="mb-4">
         <div class="row g-3 align-items-center">
+            <!-- Date Range Filter -->
             <div class="col-md-3">
                 <label for="range" class="form-label">Date Range:</label>
                 <select name="range" id="range" class="form-select">
-                    <option value="">-- Select Range --</option>
-                    <option value="this_month" {{ request('range') == 'this_month' ? 'selected' : '' }}>This Month</option>
+                    <option value="" {{ request()->has('range') ? '' : 'disabled' }}>-- Select Range --</option>
+                    <option value="this_month"
+                        {{ request()->has('range') ? (request('range') == 'this_month' ? 'selected' : '') : 'selected' }}>
+                        This Month
+                    </option>
                     <option value="last_month" {{ request('range') == 'last_month' ? 'selected' : '' }}>Last Month</option>
                     <option value="last_3_months" {{ request('range') == 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
                 </select>
             </div>
 
+            <!-- System Filter -->
             <div class="col-md-3">
                 <label for="system" class="form-label">System:</label>
                 <select name="system" id="system" class="form-select">
-                    <option value="">-- All Systems --</option>
+                    <option value="" {{ request()->has('system') ? '' : 'disabled' }}>-- All Systems --</option>
                     @foreach (['SCM', 'Odoo', 'D365 Live', 'Fit Express', 'FIT ERP', 'Fit Express UAT', 'FITerp UAT', 'OPS', 'OPS UAT'] as $sys)
-                        <option value="{{ $sys }}" {{ request('system') == $sys ? 'selected' : '' }}>{{ $sys }}</option>
+                        <option value="{{ $sys }}"
+                            {{ request()->has('system')
+                                ? (request('system') === $sys ? 'selected' : '')
+                                : ($sys === 'SCM' ? 'selected' : '') }}>
+                            {{ $sys }}
+                        </option>
                     @endforeach
                 </select>
             </div>
@@ -51,6 +56,7 @@
         </div>
     </form>
 
+    <!-- User Table -->
     @if ($users->isEmpty())
         <div class="alert alert-info">No users found. Please import users or check the database.</div>
     @else
@@ -105,7 +111,4 @@
         </div>
     @endif
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+@endsection

@@ -20,7 +20,7 @@ class ActivityReportController extends Controller
             ? Carbon::parse($request->input('date'))->endOfDay()
             : now();
 
-        $activity = User::select([
+            $activity = User::select([
                 'users.id',
                 'users.displayName',
                 'users.userPrincipalName',
@@ -34,7 +34,8 @@ class ActivityReportController extends Controller
             })
             ->groupBy('users.id', 'users.displayName', 'users.userPrincipalName')
             ->orderByDesc('login_count')
-            ->get();
+            ->paginate(20); 
+            
 
         return view('activity_report.index', compact('activity', 'startDate', 'endDate'));
     }

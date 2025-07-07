@@ -49,6 +49,10 @@
                 @endforelse
             </tbody>
         </table>
+        <div class="mt-4">
+            {{ $activity->withQueryString()->links() }}
+         </div>
+
     </div>
 
 </div>
