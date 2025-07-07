@@ -9,6 +9,11 @@
 <body>
     <div class="container mt-5">
         <h1>Login Tracker Dashboard</h1>
+        <a href="{{ route('users.create') }}" class="btn btn-success mb-3">Add User</a>
+        <a href="/imports" class="btn btn-primary mb-3">Import Data</a>
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
         <form method="GET" action="{{ route('dashboard') }}" class="mb-3">
             <div class="row">
                 <div class="col-md-4">
@@ -23,16 +28,31 @@
         <table class="table table-striped">
             <thead>
                 <tr>
+                    <th>ID</th>
                     <th>User</th>
+                    <th>Surname 1</th>
+                    <th>Surname 2</th>
+                    <th>Email 1</th>
+                    <th>Email 2</th>
+                    <th>Given Name 1</th>
+                    <th>Given Name 2</th>
                     <th>Login Count (Last 30 Days)</th>
                     <th>Login Times</th>
                     <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($users as $user)
                     <tr>
+                        <td>{{ $user->id ?? 'N/A' }}</td>
                         <td>{{ $user->displayName ?? $user->userPrincipalName }}</td>
+                        <td>{{ $user->surname1 ?? 'N/A' }}</td>
+                        <td>{{ $user->surname2 ?? 'N/A' }}</td>
+                        <td>{{ $user->mail1 ?? 'N/A' }}</td>
+                        <td>{{ $user->mail2 ?? 'N/A' }}</td>
+                        <td>{{ $user->givenName1 ?? 'N/A' }}</td>
+                        <td>{{ $user->givenName2 ?? 'N/A' }}</td>
                         <td>{{ $user->sign_ins_count }}</td>
                         <td>
                             @if ($user->sign_ins_count > 0)
@@ -51,6 +71,13 @@
                             @else
                                 Never logged in
                             @endif
+                        </td>
+                        <td>
+                            <form action="{{ route('users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach

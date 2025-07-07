@@ -1,4 +1,5 @@
-<?php
+<?php 
+
 
 namespace App\Models;
 
@@ -9,7 +10,9 @@ class User extends Authenticatable
 {
     use HasFactory;
 
-    protected $primaryKey = 'primary_id';
+    protected $primaryKey = 'id';  // primary key column
+    public $incrementing = false;  // disable auto-increment
+    protected $keyType = 'string'; // key is string type
 
     protected $fillable = [
         'id', 'userPrincipalName', 'displayName', 'surname1', 'surname2',
@@ -23,6 +26,6 @@ class User extends Authenticatable
 
     public function signIns()
     {
-        return $this->hasMany(InteractiveSignIn::class, 'user_id', 'primary_id');
+        return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
     }
 }

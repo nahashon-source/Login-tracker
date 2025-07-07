@@ -1,10 +1,11 @@
-<?php
+<?php 
+
 
 namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -15,35 +16,41 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        // Validate only the fields you actually have in the database
-        $validated = $request->validate([
-            'userPrincipalName' => 'required|unique:users,userPrincipalName',
-            'displayName'       => 'nullable|string',
-            'surname1'          => 'nullable|string',
-            'mail1'             => 'nullable|email',
-            'givenName1'        => 'nullable|string',
-            'userType'          => 'nullable|string',
-            'jobTitle'          => 'nullable|string',
-            'department'        => 'nullable|string',
-            'accountEnabled'    => 'boolean',
-            // Add more fields as needed
-        ]);
+        try {
+            $validated = $request->validate([
+                'id' => 'required|string|unique:users,id',
+                'userPrincipalName' => 'required|unique:users,userPrincipalName',
+                'displayName' => 'nullable|string',
+                'surname1' => 'nullable|string',
+                'surname2' => 'nullable|string',
+                'mail1' => 'nullable|email',
+                'mail2' => 'nullable|email',
+                'givenName1' => 'nullable|string',
+                'givenName2' => 'nullable|string',
+                'userType' => 'nullable|string',
+                'jobTitle' => 'nullable|string',
+                'department' => 'nullable|string',
+                'accountEnabled' => 'boolean',
+            ]);
 
-        // Generate UUID for primary key
-        $validated['id'] = (string) Str::uuid();
+            User::create($validated + ['createdDateTime' => now()]);
 
-        // Set createdDateTime
-        $validated['createdDateTime'] = now();
-
-        User::create($validated);
-
-        return redirect()->route('dashboard')->with('success', 'User added successfully!');
+            return redirect()->route('dashboard')->with('success', 'User added successfully!');
+        } catch (ValidationException $e) {
+            return redirect()->back()->withErrors($e->validator)->withInput();
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'An unexpected error occurred: ' . $e->getMessage());
+        }
     }
 
     public function destroy($id)
     {
-        // Note: primary key is string 'id' field
-        $user = User::findOrFail($id);
+        $user = User::find($id);
+
+        if (!$user) {
+            return redirect()->route('dashboard')->with('error', 'User not found.');
+        }
+
         $user->delete();
 
         return redirect()->route('dashboard')->with('success', 'User deleted successfully!');

@@ -9,9 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            // External GUID/UUID string-based primary key
-            $table->string('id')->primary();
-
+            $table->string('id')->primary(); // Primary key as string
             $table->string('userPrincipalName')->unique();
             $table->string('displayName')->nullable();
             $table->string('surname1')->nullable();
@@ -43,7 +41,6 @@ return new class extends Migration
             $table->string('invitationState')->nullable();
             $table->string('identityIssuer')->nullable();
             $table->timestamp('createdDateTime')->nullable();
-
             $table->timestamps();
         });
     }
