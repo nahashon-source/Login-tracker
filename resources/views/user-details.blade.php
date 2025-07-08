@@ -2,12 +2,19 @@
 
 @section('content')
 <div class="container my-5">
+
+    {{-- User Details Card --}}
     <div class="card shadow rounded">
+
+        {{-- Card Header --}}
         <div class="card-header bg-primary text-white">
             <h1 class="mb-0">User Details</h1>
         </div>
+
+        {{-- Card Body --}}
         <div class="card-body">
-            <!-- User Metadata -->
+
+            {{-- User Metadata Section --}}
             <div class="mb-4">
                 <h4 class="mb-3">Basic Information</h4>
                 <p><strong>ID:</strong> {{ $user->id }}</p>
@@ -19,8 +26,10 @@
                 <p><strong>Created Date:</strong> {{ \Carbon\Carbon::parse($user->createdDateTime)->format('Y-m-d') }}</p>
             </div>
 
-            <!-- Filter Form -->
+            {{-- Filter Form: Date Range and System --}}
             <form method="GET" action="{{ route('users.show', $user->id) }}" class="row g-3 mb-4">
+
+                {{-- Date Range Dropdown --}}
                 <div class="col-md-4">
                     <label for="range" class="form-label">Date Range</label>
                     <select name="range" id="range" class="form-select">
@@ -30,6 +39,7 @@
                     </select>
                 </div>
 
+                {{-- System Dropdown --}}
                 <div class="col-md-4">
                     <label for="system" class="form-label">System</label>
                     <select name="system" id="system" class="form-select">
@@ -39,13 +49,14 @@
                     </select>
                 </div>
 
+                {{-- Apply Filters and Reset Buttons --}}
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
                     <a href="{{ route('users.show', $user->id) }}" class="btn btn-outline-secondary">Reset</a>
                 </div>
             </form>
 
-            <!-- Current Filter Display -->
+            {{-- Display Current Filter Range --}}
             <div class="mb-4">
                 <strong>Showing Sign-Ins</strong> 
                 from <span class="text-primary">{{ $start->format('Y-m-d') }}</span>
@@ -57,15 +68,17 @@
                 @endif
             </div>
 
-            <!-- Sign-In History -->
+            {{-- Sign-In History Header with Count --}}
             <h4 class="mb-3">
                 Recent Sign-Ins 
                 <span class="badge bg-secondary">{{ $signIns->total() }}</span>
             </h4>
 
+            {{-- If No Sign-Ins Found --}}
             @if ($signIns->isEmpty())
                 <div class="alert alert-info">This user has no recorded sign-ins for the selected period.</div>
             @else
+                {{-- Sign-Ins Table --}}
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover align-middle">
                         <thead class="table-dark">
@@ -76,6 +89,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {{-- Loop through sign-in records --}}
                             @foreach ($signIns as $signIn)
                                 <tr>
                                     <td>{{ optional($signIn->date_utc)->format('Y-m-d H:i:s') }}</td>
@@ -87,14 +101,17 @@
                     </table>
                 </div>
 
+                {{-- Pagination Links --}}
                 <div class="d-flex justify-content-center mt-4">
                     {{ $signIns->withQueryString()->links() }}
                 </div>
             @endif
 
+            {{-- Back to Dashboard Button --}}
             <div class="mt-4">
                 <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">← Back to Dashboard</a>
             </div>
+
         </div>
     </div>
 </div>
