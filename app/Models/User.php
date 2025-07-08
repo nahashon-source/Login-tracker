@@ -121,9 +121,9 @@ class User extends Authenticatable
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function signIns()
-    {
-        // User can have many related sign-ins
-        return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
-    }
+    public function interactiveSignIns()
+{
+    return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
+}
+
 }

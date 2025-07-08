@@ -2,11 +2,13 @@
 
 @section('content')
 <div class="container mt-4">
-    <h2 class="mb-3">Users Not Logged In ({{ $range }})</h2>
-    <a href="{{ route('dashboard') }}" class="btn btn-secondary mb-3">← Back to Dashboard</a>
+    <h2 class="mb-3">Users Not Logged In ({{ ucfirst(str_replace('_', ' ', $range)) }})</h2>
+    <a href="{{ route('dashboard', ['range' => $range]) }}" class="btn btn-secondary mb-3">← Back to Dashboard</a>
 
-    <!-- Search Form -->
+    <!-- Search & Filter Form -->
     <form method="GET" action="{{ route('users.not-logged-in') }}" class="row g-2 mb-4">
+        <input type="hidden" name="range" value="{{ $range }}">
+
         <div class="col-md-4">
             <input type="text" name="search" id="search" class="form-control"
                    placeholder="Search Name, UPN, or Email" value="{{ request('search') }}">
@@ -14,7 +16,7 @@
 
         <div class="col-md-4">
             <button type="submit" class="btn btn-primary">Search</button>
-            <a href="{{ route('users.not-logged-in') }}" class="btn btn-secondary">Reset</a>
+            <a href="{{ route('users.not-logged-in', ['range' => $range]) }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>
 
@@ -29,7 +31,7 @@
     @if ($users->isEmpty())
         <div class="alert alert-info">No users found who haven't logged in for this period.</div>
     @else
-        <table class="table table-bordered">
+        <table class="table table-striped table-hover">
             <thead class="table-dark">
                 <tr>
                     <th>UserPrincipalName</th>
@@ -40,9 +42,9 @@
             <tbody>
                 @foreach ($users as $user)
                     <tr>
-                        <td>{{ $user->userPrincipalName }}</td>
-                        <td>{{ $user->displayName }}</td>
-                        <td>{{ \Carbon\Carbon::parse($user->createdDateTime)->format('Y-m-d') }}</td>
+                        <td>{{ $user->userPrincipalName ?? 'N/A' }}</td>
+                        <td>{{ $user->displayName ?? 'N/A' }}</td>
+                        <td>{{ $user->createdDateTime ? \Carbon\Carbon::parse($user->createdDateTime)->format('Y-m-d') : 'N/A' }}</td>
                     </tr>
                 @endforeach
             </tbody>

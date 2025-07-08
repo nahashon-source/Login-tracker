@@ -73,7 +73,7 @@
     @endif
 
     {{-- Remove User Form --}}
-    <form method="POST" action="{{ route('users.destroy', $user->id) }}" 
+    <form method="POST" action="{{ route('users.destroy', ['user' => $user->id]) }}" 
           class="mt-4"
           onsubmit="return confirm('Are you sure you want to remove this user?');">
         @csrf
