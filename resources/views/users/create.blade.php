@@ -87,6 +87,24 @@
             <input type="text" class="form-control" id="givenName2" name="givenName2" value="{{ old('givenName2') }}">
         </div>
 
+        <!-- User Type -->
+        <div class="mb-3">
+            <label for="userType" class="form-label">User Type</label>
+            <input type="text" class="form-control" id="userType" name="userType" value="{{ old('userType') }}">
+        </div>
+
+        <!-- Job Title -->
+        <div class="mb-3">
+            <label for="jobTitle" class="form-label">Job Title</label>
+            <input type="text" class="form-control" id="jobTitle" name="jobTitle" value="{{ old('jobTitle') }}">
+        </div>
+
+        <!-- Department -->
+        <div class="mb-3">
+            <label for="department" class="form-label">Department</label>
+            <input type="text" class="form-control" id="department" name="department" value="{{ old('department') }}">
+        </div>
+
         <!-- Account Enabled -->
         <div class="mb-3">
             <label for="accountEnabled" class="form-label">Account Enabled</label>
