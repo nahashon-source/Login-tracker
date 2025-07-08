@@ -106,7 +106,7 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::findOrFail($id);
-        $signIns = $user->signInsPaginated()->paginate($this->perPage);
+        $signIns = $user->signIns()->paginate($this->perPage);
 
         return view('user-details', compact('user', 'signIns'));
     }
