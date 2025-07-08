@@ -5,10 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model representing interactive sign-in records for application users.
+ *
+ * Each record logs metadata about a user's sign-in attempt, 
+ * including authentication details, IP addresses, device info, 
+ * and conditional access outcomes.
+ *
+ * @property string $date_utc
+ * @property string $request_id
+ * @property string $user_agent
+ * @property string $correlation_id
+ * @property string $user_id
+ * ...
+ * @property string $latency
+ * @property string $conditional_access
+ * @property string $managed_identity_type
+ * @property string $associated_resource_id
+ * @property string $federated_token_id
+ * @property string $federated_token_issuer
+ */
 class InteractiveSignIn extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * These correspond directly to the CSV columns imported by InteractiveSignInsImport.
+     *
+     * @var array
+     */
     protected $fillable = [
         'date_utc', 'request_id', 'user_agent', 'correlation_id', 'user_id',
         'user', 'username', 'user_type', 'cross_tenant_access_type',
@@ -29,18 +56,43 @@ class InteractiveSignIn extends Model
         'federated_token_id', 'federated_token_issuer',
     ];
 
+    /**
+     * Get the user associated with this sign-in event.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Scope: Last 30 days
+    /**
+     * Query scope to filter sign-ins within the last 30 days.
+     *
+     * Usage:
+     * ```php
+     * InteractiveSignIn::last30Days()->get();
+     * ```
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function scopeLast30Days($query)
     {
         return $query->where('date_utc', '>=', now()->subDays(30));
     }
 
-    // Scope: Order latest first
+    /**
+     * Query scope to order sign-in records by most recent first.
+     *
+     * Usage:
+     * ```php
+     * InteractiveSignIn::latestFirst()->get();
+     * ```
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function scopeLatestFirst($query)
     {
         return $query->orderBy('date_utc', 'desc');
