@@ -103,14 +103,34 @@ class UserController extends Controller
     
     
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $signIns = $user->signIns()->paginate($this->perPage);
-
-        return view('user-details', compact('user', 'signIns'));
+    
+        // Default to 'this_month' if no range is provided
+        $range = $request->input('range', 'this_month');
+    
+        // Default to 'SCM' if no system is provided
+        $system = $request->input('system', 'SCM');
+    
+        // Resolve date range
+        [$start, $end] = $this->resolveDateRange($range);
+    
+        // Build sign-ins query
+        $signInsQuery = $user->signIns()
+            ->whereBetween('date_utc', [$start, $end]);
+    
+        if ($system) {
+            $signInsQuery->where('system', $system);
+        }
+    
+        $signIns = $signInsQuery->orderBy('date_utc', 'desc')
+            ->paginate($this->perPage)
+            ->withQueryString();
+    
+        return view('user-details', compact('user', 'signIns', 'start', 'end', 'system', 'range'));
     }
-
+    
     public function loggedInUsers(Request $request)
     {
         [$start, $end] = $this->resolveDateRange($request);
