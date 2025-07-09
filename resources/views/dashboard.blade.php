@@ -9,7 +9,7 @@
     {{-- Action Buttons --}}
     <div class="mb-3">
         <a href="{{ route('users.create') }}" class="btn btn-success">Add User</a>
-        <a href="/imports" class="btn btn-primary">Import Data</a>
+        <a href="{{ route('imports.index') }}" class="btn btn-primary">Import Data</a>
         <a href="{{ route('activity.report') }}" class="btn btn-info">Activity Report</a>
     </div>
 
@@ -24,7 +24,7 @@
     <div class="row mb-4">
         {{-- Logged In Users --}}
         <div class="col-md-6">
-            <a href="{{ route('users.logged-in', ['range' => $range]) }}" class="text-decoration-none">
+            <a href="{{ route('users.logged-in', ['range' => $rangeLabel]) }}" class="text-decoration-none">
                 <div class="card bg-success text-white shadow">
                     <div class="card-body">
                         <h5 class="card-title">Logged In Users</h5>
@@ -36,7 +36,7 @@
 
         {{-- Not Logged In Users --}}
         <div class="col-md-6">
-            <a href="{{ route('users.not-logged-in', ['range' => $range]) }}" class="text-decoration-none">
+            <a href="{{ route('users.not-logged-in', ['range' => $rangeLabel]) }}" class="text-decoration-none">
                 <div class="card bg-danger text-white shadow">
                     <div class="card-body">
                         <h5 class="card-title">Not Logged In Users</h5>
@@ -54,9 +54,9 @@
             <label for="range" class="form-label">Date Range:</label>
             <select name="range" id="range" class="form-select">
                 <option value="">-- Select Range --</option>
-                <option value="this_month" {{ $range === 'this_month' ? 'selected' : '' }}>This Month</option>
-                <option value="last_month" {{ $range === 'last_month' ? 'selected' : '' }}>Last Month</option>
-                <option value="last_3_months" {{ $range === 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
+                <option value="this_month" {{ $rangeInput === 'this_month' ? 'selected' : '' }}>This Month</option>
+                <option value="last_month" {{ $rangeInput === 'last_month' ? 'selected' : '' }}>Last Month</option>
+                <option value="last_3_months" {{ $rangeInput === 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
             </select>
         </div>
 
@@ -65,10 +65,7 @@
             <label for="system" class="form-label">System:</label>
             <select name="system" id="system" class="form-select">
                 @foreach (['SCM', 'Odoo', 'D365 Live', 'Fit Express', 'FIT ERP', 'Fit Express UAT', 'FITerp UAT', 'OPS', 'OPS UAT'] as $sys)
-                    <option value="{{ $sys }}"
-                        {{ request('system', 'SCM') === $sys ? 'selected' : '' }}>
-                        {{ $sys }}
-                    </option>
+                    <option value="{{ $sys }}" {{ $systemInput === $sys ? 'selected' : '' }}>{{ $sys }}</option>
                 @endforeach
             </select>
         </div>
@@ -108,10 +105,10 @@
                         <td>{{ $user->displayName ?? 'N/A' }}</td>
                         <td>{{ $user->userPrincipalName ?? 'N/A' }}</td>
                         <td>
-                            <span class="badge bg-secondary">Count: {{ $user->login_count ?? 0 }}</span><br>
+                            <span class="badge bg-secondary">Count: {{ $user->sign_ins_count ?? 0 }}</span><br>
                             <small>
-                                Last: {{ $user->last_login_at 
-                                            ? \Carbon\Carbon::parse($user->last_login_at)->format('Y-m-d') 
+                                Last: {{ $user->last_login_at
+                                            ? \Carbon\Carbon::parse($user->last_login_at)->format('Y-m-d')
                                             : 'N/A' }}
                             </small>
                         </td>

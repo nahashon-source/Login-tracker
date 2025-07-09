@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+
 
 class UserController extends Controller
 {
@@ -103,16 +105,17 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $range = $request->input('range', 'this_month');
-        $system = $request->input('system', 'SCM');
+        $system = $request->input('system' , 'SCM');
 
         [$start, $end] = $this->resolveDateRange($range);
 
         $signInsQuery = $user->interactiveSignIns()
             ->whereBetween('date_utc', [$start, $end]);
 
-        if ($system) {
-            $signInsQuery->where('system', $system);
-        }
+            if ($system) {
+                $signInsQuery->where('system', $system);
+            }
+            
 
         $signIns = $signInsQuery->orderBy('date_utc', 'desc')
             ->paginate($this->perPage)
@@ -126,11 +129,16 @@ class UserController extends Controller
         [$start, $end] = $this->resolveDateRange($request);
         $search = $request->input('search');
         $range = $request->input('range', 'this_month');
-
-        $query = User::whereHas('interactiveSignIns', function ($q) use ($start, $end) {
+        $system = $request->input('system');
+    
+        $query = User::whereHas('interactiveSignIns', function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
+    
+            if ($system) {
+                $q->where('resource_display_name', $system);
+            }
         });
-
+    
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('displayName', 'like', "%{$search}%")
@@ -139,37 +147,48 @@ class UserController extends Controller
                     ->orWhere('mail2', 'like', "%{$search}%");
             });
         }
-
-        $users = $query->withCount(['interactiveSignIns as login_count' => function ($q) use ($start, $end) {
+    
+        $users = $query->withCount(['interactiveSignIns as login_count' => function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
+    
+            if ($system) {
+                $q->where('resource_display_name', $system);
+            }
         }])->paginate(10)->withQueryString();
-
-        return view('users.logged-in', compact('users', 'range', 'search'));
+    
+        return view('users.logged-in', compact('users', 'range', 'search', 'system'));
     }
+    
 
     public function notLoggedInUsers(Request $request)
-    {
-        [$start, $end] = $this->resolveDateRange($request);
-        $search = $request->input('search');
-        $range = $request->input('range', 'this_month');
+{
+    [$start, $end] = $this->resolveDateRange($request);
+    $search = $request->input('search');
+    $range = $request->input('range', 'this_month');
+    $system = $request->input('system');
 
-        $query = User::whereDoesntHave('interactiveSignIns', function ($q) use ($start, $end) {
-            $q->whereBetween('date_utc', [$start, $end]);
+    $query = User::whereDoesntHave('interactiveSignIns', function ($q) use ($start, $end, $system) {
+        $q->whereBetween('date_utc', [$start, $end]);
+
+        // if ($system) {
+        //     $q->where('resource_display_name', $system);
+        // }
+    });
+
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('displayName', 'like', "%{$search}%")
+                ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                ->orWhere('mail1', 'like', "%{$search}%")
+                ->orWhere('mail2', 'like', "%{$search}%");
         });
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('displayName', 'like', "%{$search}%")
-                    ->orWhere('userPrincipalName', 'like', "%{$search}%")
-                    ->orWhere('mail1', 'like', "%{$search}%")
-                    ->orWhere('mail2', 'like', "%{$search}%");
-            });
-        }
-
-        $users = $query->paginate(10)->withQueryString();
-
-        return view('users.not-logged-in', compact('users', 'range', 'search'));
     }
+
+    $users = $query->paginate(10)->withQueryString();
+
+    return view('users.not-logged-in', compact('users', 'range', 'search', 'system'));
+}
+
 
     protected function resolveDateRange($input = null)
     {
@@ -184,19 +203,37 @@ class UserController extends Controller
             }
         }
 
+        // switch ($input) {
+        //     case 'last_month':
+        //         $start = now()->subMonthNoOverflow()->startOfMonth();
+        //         $end = now()->subMonthNoOverflow()->endOfMonth();
+        //         break;
+        //     case 'last_3_months':
+        //         $start = now()->subMonthsNoOverflow(3)->startOfMonth();
+        //         $end = now()->endOfDay();
+        //         break;
+        //     default:
+        //         $start = now()->startOfMonth();
+        //         $end = now()->endOfDay();
+        // }
+
+
         switch ($input) {
             case 'last_month':
-                $start = now()->subMonthNoOverflow()->startOfMonth();
-                $end = now()->subMonthNoOverflow()->endOfMonth();
+                $start = Carbon::create(2025, 7, 1)->startOfDay();
+                $end   = Carbon::create(2025, 7, 1)->endOfDay();
                 break;
             case 'last_3_months':
-                $start = now()->subMonthsNoOverflow(3)->startOfMonth();
-                $end = now()->endOfDay();
+                $start = Carbon::create(2025, 7, 1)->startOfDay();
+                $end   = Carbon::create(2025, 7, 2)->endOfDay();
                 break;
             default:
-                $start = now()->startOfMonth();
-                $end = now()->endOfDay();
+                $start = Carbon::create(2025, 7, 1)->startOfDay();
+                $end   = Carbon::create(2025, 7, 2)->endOfDay();
         }
+        
+        Log::info('Resolved Date Range', ['start' => $start, 'end' => $end]);
+
 
         return [$start, $end];
     }

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
+use Maatwebsite\Excel\Imports\HeadingRowFormatter;
+
 
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         //
+        HeadingRowFormatter::default('none');
+
         Paginator::useBootstrapFive(); // ✅ Forces Bootstrap 5 pagination views
 
     }

@@ -3,119 +3,96 @@
 namespace App\Imports;
 
 use App\Models\InteractiveSignIn;
-use App\Models\User;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+
+
 
 class InteractiveSignInsImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        // Normalize headers
         $row = array_change_key_case($row, CASE_LOWER);
 
-        // Sanitize user_id string
-        $userId = isset($row['user_id']) 
-            ? preg_replace('/[^a-fA-F0-9\-]/', '', $row['user_id']) 
-            : null;
-
-        // Check user_id is valid
-        if (!$userId) {
-            Log::channel('import')->warning("Missing or invalid user_id in row: " . json_encode($row));
+        // Attempt to find user by userPrincipalName if it's an email
+        $userId = null;
+        $userPrincipalName = strtolower(trim($row['username']));
+    
+        if (filter_var($userPrincipalName, FILTER_VALIDATE_EMAIL)) {
+            $user = User::whereRaw('LOWER(TRIM(userPrincipalName)) = ?', [$userPrincipalName])->first();
+            if ($user) {
+                $userId = $user->id;
+            }
+        }
+    
+        // Skip or log this row if no user match
+        if (is_null($userId)) {
+            Log::channel('import')->warning("User not found for username: {$row['username']}");
             return null;
         }
-
-        // Confirm user exists
-        if (!User::find($userId)) {
-            Log::channel('import')->warning("User ID '{$userId}' not found in users table");
-            return null;
-        }
-
-        // Validate required fields
-        $validator = Validator::make([
-            'date_utc' => $row['date_utc'] ?? null,
-            'status'   => $row['status'] ?? null,
-        ], [
-            'date_utc' => 'required|date',
-            'status'   => 'required',
-        ]);
-
-        if ($validator->fails()) {
-            Log::channel('import')->warning("Row validation failed for user_id {$userId}", $validator->errors()->toArray());
-            return null;
-        }
-
-        // Parse date safely
-        $dateUTC = null;
-        try {
-            $dateUTC = Carbon::parse($row['date_utc'])->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            Log::channel('import')->warning("Invalid date format for user_id {$userId}: '{$row['date_utc']}'");
-        }
-
-        // Prepare new model instance
+    
         return new InteractiveSignIn([
-            'date_utc'  => $dateUTC,
-            'request_id' => $row['request_id'] ?? null,
-            'user_agent' => $row['user_agent'] ?? null,
-            'correlation_id' => $row['correlation_id'] ?? null,
-            'user_id' => $userId,
-            'user' => $row['user'] ?? null,
-            'username' => $row['username'] ?? null,
-            'user_type' => $row['user_type'] ?? null,
-            'cross_tenant_access_type' => $row['cross_tenant_access_type'] ?? null,
-            'incoming_token_type' => $row['incoming_token_type'] ?? null,
-            'authentication_protocol' => $row['authentication_protocol'] ?? null,
-            'unique_token_identifier' => $row['unique_token_identifier'] ?? null,
-            'original_transfer_method' => $row['original_transfer_method'] ?? null,
-            'client_credential_type' => $row['client_credential_type'] ?? null,
-            'token_protection_sign_in_session' => filter_var($row['token_protection_sign_in_session'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            'application' => $row['application'] ?? null,
-            'application_id' => $row['application_id'] ?? null,
-            'resource' => $row['resource'] ?? null,
-            'resource_id' => $row['resource_id'] ?? null,
-            'resource_tenant_id' => $row['resource_tenant_id'] ?? null,
-            'resource_owner_tenant_id' => $row['resource_owner_tenant_id'] ?? null,
-            'home_tenant_id' => $row['home_tenant_id'] ?? null,
-            'home_tenant_name' => $row['home_tenant_name'] ?? null,
-            'ip_address' => $row['ip_address'] ?? null,
-            'location' => $row['location'] ?? null,
-            'status' => $row['status'],
-            'sign_in_error_code' => $row['sign_in_error_code'] ?? null,
-            'failure_reason' => $row['failure_reason'] ?? null,
-            'client_app' => $row['client_app'] ?? null,
-            'device_id' => $row['device_id'] ?? null,
-            'browser' => $row['browser'] ?? null,
-            'operating_system' => $row['operating_system'] ?? null,
-            'compliant' => filter_var($row['compliant'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            'managed' => filter_var($row['managed'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            'join_type' => $row['join_type'] ?? null,
-            'multifactor_authentication_result' => isset($row['multifactor_authentication_result']) 
-                ? Str::limit($row['multifactor_authentication_result'], 250) 
-                : null,
-            'multifactor_authentication_auth_method' => $row['multifactor_authentication_auth_method'] ?? null,
-            'multifactor_authentication_auth_detail' => $row['multifactor_authentication_auth_detail'] ?? null,
-            'authentication_requirement' => $row['authentication_requirement'] ?? null,
-            'sign_in_identifier' => $row['sign_in_identifier'] ?? null,
-            'session_id' => $row['session_id'] ?? null,
-            'ip_address_seen_by_resource' => $row['ip_address_seen_by_resource'] ?? null,
-            'through_global_secure_access' => filter_var($row['through_global_secure_access'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            'global_secure_access_ip_address' => $row['global_secure_access_ip_address'] ?? null,
-            'autonomous_system_number' => $row['autonomous_system_number'] ?? null,
-            'flagged_for_review' => filter_var($row['flagged_for_review'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            'token_issuer_type' => $row['token_issuer_type'] ?? null,
-            'incoming_token_type_duplicate' => $row['incoming_token_type_duplicate'] ?? null,
-            'token_issuer_name' => $row['token_issuer_name'] ?? null,
-            'latency' => is_numeric($row['latency'] ?? null) ? $row['latency'] : null,
-            'conditional_access' => $row['conditional_access'] ?? null,
-            'managed_identity_type' => $row['managed_identity_type'] ?? null,
-            'associated_resource_id' => $row['associated_resource_id'] ?? null,
-            'federated_token_id' => $row['federated_token_id'] ?? null,
-            'federated_token_issuer' => $row['federated_token_issuer'] ?? null,
+            'date_utc' => !empty($row['date (utc)']) ? Carbon::parse($row['date (utc)'])->format('Y-m-d H:i:s') : null,
+
+          
+            'request_id'                        => $row['request id'] ?? null,
+            'user_agent'                        => $row['user agent'] ?? null,
+            'correlation_id'                    => $row['correlation id'] ?? null,
+            'user_id'                           => $userId,
+            'user'                              => $row['user'] ?? null,
+            'username'                          => $row['username'] ?? null,
+            'user_type'                         => $row['user type'] ?? null,
+            'cross_tenant_access_type'          => $row['cross tenant access type'] ?? null,
+            'incoming_token_type'               => $row['incoming token type'] ?? null,
+            'authentication_protocol'          => $row['authentication protocol'] ?? null,
+            'unique_token_identifier'          => $row['unique token identifier'] ?? null,
+            'original_transfer_method'         => $row['original transfer method'] ?? null,
+            'client_credential_type'           => $row['client credential type'] ?? null,
+            'token_protection_sign_in_session' => $row['token protection - sign in session'] ?? null,
+            'token_protection_status_code'     => $row['token protection - sign in session statuscode'] ?? null,
+            'application'                      => $row['application'] ?? null,
+            'application_id'                   => $row['application id'] ?? null,
+            'resource'                         => $row['resource'] ?? null,
+            'resource_id'                       => $row['resource id'] ?? null,
+            'resource_tenant_id'               => $row['resource tenant id'] ?? null,
+            'resource_owner_tenant_id'         => $row['resource owner tenant id'] ?? null,
+            'home_tenant_id'                   => $row['home tenant id'] ?? null,
+            'home_tenant_name'                 => $row['home tenant name'] ?? null,
+            'ip_address'                       => $row['ip address'] ?? null,
+            'location'                         => $row['location'] ?? null,
+            'status'                           => $row['status'] ?? null,
+            'sign_in_error_code'               => $row['sign-in error code'] ?? null,
+            'failure_reason'                   => $row['failure reason'] ?? null,
+            'client_app'                       => $row['client app'] ?? null,
+            'device_id'                        => $row['device id'] ?? null,
+            'browser'                          => $row['browser'] ?? null,
+            'operating_system'                 => $row['operating system'] ?? null,
+            'compliant'                        => $row['compliant'] ?? null,
+            'managed'                          => $row['managed'] ?? null,
+            'join_type'                        => $row['join type'] ?? null,
+            'multifactor_auth_result'          => $row['multifactor authentication result'] ?? null,
+            'multifactor_auth_method'          => $row['multifactor authentication auth method'] ?? null,
+            'multifactor_auth_detail'          => $row['multifactor authentication auth detail'] ?? null,
+            'authentication_requirement'      => $row['authentication requirement'] ?? null,
+            'sign_in_identifier'               => $row['sign-in identifier'] ?? null,
+            'session_id'                       => $row['session id'] ?? null,
+            'ip_address_seen_by_resource'      => $row['ip address (seen by resource)'] ?? null,
+            'through_global_secure_access'    => $row['through global secure access'] ?? null,
+            'global_secure_access_ip'         => $row['global secure access ip address'] ?? null,
+            'autonomous_system_number'        => $row['autonomous system  number'] ?? null,
+            'flagged_for_review'               => $row['flagged for review'] ?? null,
+            'token_issuer_type'                => $row['token issuer type'] ?? null,
+            'incoming_token_type_duplicate'   => null, // also missing
+            'token_issuer_name'                => $row['token issuer name'] ?? null,
+            'latency'                          => $row['latency'] ?? null,
+            'conditional_access'               => $row['conditional access'] ?? null,
+            'managed_identity_type'           => $row['managed identity type'] ?? null,
+            'associated_resource_id'          => $row['associated resource id'] ?? null,
+            'federated_token_id'               => $row['federated token id'] ?? null,
+            'federated_token_issuer'          => $row['federated token issuer'] ?? null,
         ]);
     }
 }

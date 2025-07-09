@@ -8,9 +8,13 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 class Kernel extends ConsoleKernel
 {
     protected $commands = [
-        // Register your custom Artisan commands here
-    ];
+        \App\Console\Commands\ImportUsersCommand::class,
+        \App\Console\Commands\ImportSignInsCommand::class,
+        \App\Console\Commands\ImportInteractiveSignIns::class,
 
+
+    ];
+    
     protected function schedule(Schedule $schedule)
     {
         // Define scheduled tasks here

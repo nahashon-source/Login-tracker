@@ -121,9 +121,14 @@ class User extends Authenticatable
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
+    public function signIns()
+    {
+        return $this->hasMany(InteractiveSignIn::class, 'username', 'userPrincipalName');
+    }
+    
     public function interactiveSignIns()
-{
-    return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
-}
-
+    {
+        return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
+    }
+    
 }

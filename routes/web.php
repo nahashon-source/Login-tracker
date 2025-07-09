@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ActivityReportController;
+use App\Http\Controllers\DashboardController;
+
 
 // Redirect root URL to dashboard
 Route::get('/', function () {
@@ -11,7 +13,7 @@ Route::get('/', function () {
 });
 
 // Dashboard route
-Route::get('/dashboard', [UserController::class, 'index'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 // Logged-in users list
 Route::get('/users/logged-in', [UserController::class, 'loggedInUsers'])->name('users.logged-in');

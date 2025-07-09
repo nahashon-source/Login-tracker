@@ -43,7 +43,7 @@ class UsersImport implements ToModel, WithHeadingRow
 
         // Define validation rules
         $validator = Validator::make($row, [
-            'id' => 'required|unique:users,id',
+            // 'id' => 'required|unique:users,id',
             'userprincipalname' => 'required|email',
         ]);
 
