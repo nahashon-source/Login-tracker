@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,7 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->string('id')->primary(); // Primary key as string
+            // Primary key as string (if you need it this way)
+            $table->string('id')->primary(); 
+
             $table->string('userPrincipalName')->unique();
             $table->string('displayName')->nullable();
             $table->string('surname1')->nullable();
@@ -40,8 +42,10 @@ return new class extends Migration
             $table->boolean('directorySynced')->default(false);
             $table->string('invitationState')->nullable();
             $table->string('identityIssuer')->nullable();
-            $table->timestamp('createdDateTime')->nullable();
-            $table->timestamps();
+            $table->timestamp('createdDateTime')->nullable(); // Custom createdDateTime field
+
+            // Standard Laravel timestamps
+            $table->timestamps(); 
         });
     }
 

@@ -63,7 +63,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         [$start, $end] = $this->resolveDateRange($request);
-        $range = $request->input('range', 'this_month');
+        $rangeInput = $request->input('range', 'this_month');
 
         $query = User::query();
 
@@ -97,7 +97,7 @@ class UserController extends Controller
         $loggedInCount = User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
         $notLoggedInCount = User::whereNotIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
 
-        return view('dashboard', compact('users', 'loggedInCount', 'notLoggedInCount', 'range'));
+        return view('dashboard', compact('users', 'loggedInCount', 'notLoggedInCount', 'rangeInput'));
     }
 
     public function show(Request $request, $id)
@@ -112,10 +112,7 @@ class UserController extends Controller
         $signInsQuery = $user->interactiveSignIns()
             ->whereBetween('date_utc', [$start, $end]);
 
-            if ($system) {
-                $signInsQuery->where('system', $system);
-            }
-            
+           
 
         $signIns = $signInsQuery->orderBy('date_utc', 'desc')
             ->paginate($this->perPage)
@@ -134,9 +131,7 @@ class UserController extends Controller
         $query = User::whereHas('interactiveSignIns', function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
     
-            if ($system) {
-                $q->where('resource_display_name', $system);
-            }
+          
         });
     
         if ($search) {
@@ -151,9 +146,6 @@ class UserController extends Controller
         $users = $query->withCount(['interactiveSignIns as login_count' => function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
     
-            if ($system) {
-                $q->where('resource_display_name', $system);
-            }
         }])->paginate(10)->withQueryString();
     
         return view('users.logged-in', compact('users', 'range', 'search', 'system'));

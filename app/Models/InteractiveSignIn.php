@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
 class InteractiveSignIn extends Model
 {
     use HasFactory;
+    
 
     /**
      * The attributes that are mass assignable.

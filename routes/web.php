@@ -6,13 +6,12 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ActivityReportController;
 use App\Http\Controllers\DashboardController;
 
-
 // Redirect root URL to dashboard
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Dashboard route
+// Dashboard route (use the index method)
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 // Logged-in users list

@@ -40,7 +40,7 @@ class ActivityReportController extends Controller
                 'users.userPrincipalName',
 
                 // Aggregate data: total logins, first and last login timestamps
-                DB::raw('COUNT(interactive_sign_ins.id) AS login_count'),
+                DB::raw('COUNT(interactive_sign_ins.user_id) AS login_count'),
                 DB::raw('MIN(interactive_sign_ins.date_utc) AS first_login'),
                 DB::raw('MAX(interactive_sign_ins.date_utc) AS last_login')
             ])

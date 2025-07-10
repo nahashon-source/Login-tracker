@@ -11,6 +11,12 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\ImportUsersCommand::class,
         \App\Console\Commands\ImportSignInsCommand::class,
         \App\Console\Commands\ImportInteractiveSignIns::class,
+        \App\Console\Commands\DeleteDummyUsers::class,
+        \App\Console\Commands\DeleteDummySignIns::class,
+            \App\Console\Commands\ImportUsers::class,
+        
+
+
 
 
     ];
