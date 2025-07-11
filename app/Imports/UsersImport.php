@@ -53,7 +53,8 @@ class UsersImport implements ToModel, WithHeadingRow
             'legalAgeGroupClassification'=> $row['legalagegroupclassification'] ?? null,
             'companyName'               => $row['companyname'] ?? 'Unknown',
             'creationType'              => $row['creationtype'] ?? null,
-            'directorySynced'           => $row['directorysynced'] ?? null,
+            'directorySynced' => !empty($row['directorysynced']) ? 1 : 0,
+
             'invitationState'           => $row['invitationstate'] ?? null,
             'identityIssuer'            => $row['identityissuer'] ?? null,
             'createdDateTime'           => !empty($row['createddatetime']) ? Carbon::parse($row['createddatetime']) : Carbon::now(),

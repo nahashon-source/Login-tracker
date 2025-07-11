@@ -45,6 +45,7 @@
 
     {{-- Import Forms --}}
     <div class="row">
+        {{-- Users Import --}}
         <div class="col-md-6">
             <h3>Import Users</h3>
             <form action="{{ route('import.users') }}" method="POST" enctype="multipart/form-data">
@@ -53,10 +54,11 @@
                     <label for="userFile" class="form-label">Upload Users CSV</label>
                     <input type="file" class="form-control" id="userFile" name="import_file" accept=".csv" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Import</button>
+                <button type="submit" class="btn btn-primary">Import Users</button>
             </form>
         </div>
 
+        {{-- Sign-Ins Import --}}
         <div class="col-md-6">
             <h3>Import Sign-Ins</h3>
             <form action="{{ route('import.sign_ins') }}" method="POST" enctype="multipart/form-data">
@@ -65,7 +67,7 @@
                     <label for="signInFile" class="form-label">Upload Sign-Ins CSV</label>
                     <input type="file" class="form-control" id="signInFile" name="import_file" accept=".csv" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Import</button>
+                <button type="submit" class="btn btn-primary">Import Sign-Ins</button>
             </form>
         </div>
     </div>

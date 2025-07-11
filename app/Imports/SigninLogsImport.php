@@ -60,7 +60,7 @@ class SigninLogsImport implements ToModel, WithHeadingRow
             'status'                            => $row['status'] ?? null,
             'sign_in_error_code'                => $row['sign-in error code'] ?? null,
             'failure_reason'                    => $row['failure reason'] ?? null,
-            'client_app'                        => $row['client app'] ?? null,
+            'clieI am not using interactive sign innt_app'                        => $row['client app'] ?? null,
             'device_id'                         => $row['device id'] ?? null,
             'browser'                           => $row['browser'] ?? null,
             'operating_system'                  => $row['operating system'] ?? null,

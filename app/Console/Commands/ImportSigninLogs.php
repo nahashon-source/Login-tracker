@@ -10,8 +10,8 @@ use Carbon\Carbon;
 
 class ImportInteractiveSignIns extends Command
 {
-    protected $signature = 'import:interactive-signins {file}';
-    protected $description = 'Import Interactive Sign-In records from CSV';
+    protected $signature = 'import:signin-logs {file}';
+    protected $description = 'Import Signin Log records from CSV';
 
     public function handle()
     {

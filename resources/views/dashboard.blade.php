@@ -16,19 +16,23 @@
         <div class="col-md-3">
             <label for="range" class="form-label">Date Range:</label>
             <select name="range" id="range" class="form-select">
-                <option value="">Last 30 Days</option>
-                <option value="this_month" {{ request('range') == 'this_month' ? 'selected' : '' }}>This Month</option>
-                <option value="last_month" {{ request('range') == 'last_month' ? 'selected' : '' }}>Last Month</option>
-                <option value="last_3_months" {{ request('range') == 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
+                @php
+                    $selectedRange = request('range', 'this_month');
+                @endphp
+                <option value="this_month" {{ $selectedRange == 'this_month' ? 'selected' : '' }}>This Month</option>
+                <option value="last_month" {{ $selectedRange == 'last_month' ? 'selected' : '' }}>Last Month</option>
+                <option value="last_3_months" {{ $selectedRange == 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
             </select>
         </div>
 
         <div class="col-md-3">
             <label for="system" class="form-label">System:</label>
             <select name="system" id="system" class="form-select">
-                <option value="">All Systems</option>
+                @php
+                    $selectedSystem = request('system', 'D365 Live');
+                @endphp
                 @foreach ($systems ?? [] as $sys)
-                    <option value="{{ $sys }}" {{ request('system') == $sys ? 'selected' : '' }}>{{ $sys }}</option>
+                    <option value="{{ $sys }}" {{ $selectedSystem == $sys ? 'selected' : '' }}>{{ $sys }}</option>
                 @endforeach
             </select>
         </div>
@@ -76,77 +80,76 @@
     </div>
 
     {{-- User Table --}}
-@if ($users->isEmpty())
-    <div class="alert alert-info">No users found for the selected filters.</div>
-@else
-    <table class="table table-striped table-hover align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>Name</th>
-                <th>Email (UPN)</th>
-                <th>Missed Days</th>
-                <th>Logins</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($users as $user)
+    @if ($users->isEmpty())
+        <div class="alert alert-info">No users found for the selected filters.</div>
+    @else
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
                 <tr>
-                    {{-- Correctly display displayName --}}
-                    <td>{{ $user->displayName ?: 'Unknown' }}</td>
-
-                    {{-- Correctly display userPrincipalName --}}
-                    <td>{{ $user->userPrincipalName ?: 'Not Set' }}</td>
-
-                    {{-- Missed Days --}}
-                    <td>
-                        @if ($user->signIns->isNotEmpty())
-                            {{ intval(Carbon::now()->diffInDays(Carbon::parse($user->signIns->first()->date_utc))) }}
-                        @else
-                            {{ intval($totalDays) }}
-                        @endif
-                    </td>
-
-                    {{-- Logins count and last login --}}
-                    <td>
-                        <span class="badge bg-secondary">Count: {{ $user->sign_ins_count ?? 0 }}</span><br>
-                        <small>
-                            Last:
-                            {{ optional($user->signIns->first())->date_utc
-                                ? \Carbon\Carbon::parse($user->signIns->first()->date_utc)->format('Y-m-d H:i')
-                                : 'N/A' }}
-                        </small>
-                    </td>
-
-                    {{-- Actions --}}
-                    <td>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                Actions
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('users.show', $user->id) }}">View</a></li>
-                                <li>
-                                    <form action="{{ route('users.destroy', $user->id) }}" method="POST"
-                                          onsubmit="return confirm('Delete this user?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="dropdown-item text-danger">Delete</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </td>
+                    <th>Name</th>
+                    <th>Email (UPN)</th>
+                    <th>Missed Days</th>
+                    <th>Logins</th>
+                    <th>Actions</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach ($users as $user)
+                    <tr>
+                        {{-- Display Name --}}
+                        <td>{{ $user->displayName ?: 'Unknown' }}</td>
 
-    {{-- Pagination --}}
-    <div class="mt-4">
-        {{ $users->withQueryString()->links() }}
-    </div>
-@endif
+                        {{-- UPN --}}
+                        <td>{{ $user->userPrincipalName ?: 'Not Set' }}</td>
 
+                        {{-- Missed Days (whole numbers only) --}}
+                        <td>
+                            @if ($user->signIns->isNotEmpty())
+                                {{ max(0, intval($totalDays - $user->sign_ins_count)) }}
+                            @else
+                                {{ intval($totalDays) }}
+                            @endif
+                        </td>
+
+                        {{-- Logins --}}
+                        <td>
+                            <span class="badge bg-secondary">Count: {{ $user->sign_ins_count ?? 0 }}</span><br>
+                            <small>
+                                Last:
+                                {{ optional($user->signIns->first())->date_utc
+                                    ? \Carbon\Carbon::parse($user->signIns->first()->date_utc)->format('Y-m-d H:i')
+                                    : 'N/A' }}
+                            </small>
+                        </td>
+
+                        {{-- Actions --}}
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ route('users.show', $user->id) }}">View</a></li>
+                                    <li>
+                                        <form action="{{ route('users.destroy', $user->id) }}" method="POST"
+                                              onsubmit="return confirm('Delete this user?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="dropdown-item text-danger">Delete</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        {{-- Pagination --}}
+        <div class="mt-4">
+            {{ $users->withQueryString()->links() }}
+        </div>
+    @endif
 </div>
 @endsection

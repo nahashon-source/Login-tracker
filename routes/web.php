@@ -29,8 +29,8 @@ Route::get('/imports', function () {
 })->name('imports.index');
 
 // CSV import endpoints
-Route::post('/import-users', [ImportController::class, 'importUsers'])->name('import.users');
-Route::post('/import-sign-ins', [ImportController::class, 'importSignIns'])->name('import.sign_ins');
+Route::post('/import/users', [ImportController::class, 'importUsers'])->name('import.users');
+Route::post('/import/sign-ins', [ImportController::class, 'importSignIns'])->name('import.sign_ins');
 
 // User management resource routes (show, create, edit, delete, etc.)
 Route::resource('users', UserController::class);

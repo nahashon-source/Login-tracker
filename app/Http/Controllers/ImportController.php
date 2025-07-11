@@ -3,76 +3,85 @@
 namespace App\Http\Controllers;
 
 use App\Imports\UsersImport;
-use App\Imports\SigninImport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\SigninLogsImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ImportController extends Controller
 {
-    /**
-     * Import users from CSV/TXT file.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function importUsers(Request $request)
     {
         $request->validate([
-            'import_file' => 'required|mimes:csv,txt',
+            'import_file' => 'required|file|mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel',
         ], [
             'import_file.required' => 'Please select a CSV file to upload.',
-            'import_file.mimes' => 'The file must be a CSV or TXT file.',
+            'import_file.mimetypes' => 'The file must be a CSV or TXT file.',
         ]);
 
         try {
             $file = $request->file('import_file');
 
-            Log::info('Users Import - Uploaded File Path: ' . $file->getRealPath());
+            Log::channel('import')->info('Starting user import...', [
+                'path' => $file->getRealPath(),
+                'originalName' => $file->getClientOriginalName(),
+            ]);
 
             Excel::import(new UsersImport, $file);
 
-            return redirect()->route('dashboard')
-                ->with('success', '✅ Users imported successfully!');
+            Log::channel('import')->info('✅ Users imported successfully.');
 
-        } catch (\Exception $e) {
-            Log::error('Users Import Failed: ' . $e->getMessage());
+            return redirect()->route('dashboard')->with('success', '✅ Users imported successfully!');
+        } catch (\Throwable $e) {
+            Log::channel('import')->error('❌ Users import failed.', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-            return redirect()->route('imports.index')
-                ->with('error', '❌ Failed to import users. Please check your file and try again.');
+            // Optional: also log to default channel
+            Log::error('❌ Users import failed.', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('dashboard')->with('error', '❌ Failed to import users: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Import sign-ins from CSV/TXT file.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function importSignIns(Request $request)
-    {
-        $request->validate([
-            'import_file' => 'required|mimes:csv,txt',
-        ], [
-            'import_file.required' => 'Please select a CSV file to upload.',
-            'import_file.mimes' => 'The file must be a CSV or TXT file.',
+    
+public function importSignIns(Request $request)
+{
+    $request->validate([
+        'import_file' => 'required|mimes:csv,txt',
+    ], [
+        'import_file.required' => 'Please select a CSV file to upload.',
+        'import_file.mimes' => 'The file must be a CSV or TXT file.',
+    ]);
+
+    try {
+        $file = $request->file('import_file');
+
+        Log::channel('import')->info('Starting sign-in import...', [
+            'path' => $file->getRealPath(),
+            'originalName' => $file->getClientOriginalName(),
         ]);
 
-        try {
-            $file = $request->file('import_file');
+        Excel::import(new SigninLogsImport, $file); // ✅ using correct class and variable
 
-            Log::info('Sign-Ins Import - Uploaded File Path: ' . $file->getRealPath());
+        Log::channel('import')->info('✅ Sign-ins imported successfully.');
 
-            Excel::import(new SigninImport, $file);
+        return redirect()->route('dashboard')->with('success', '✅ Sign-ins imported successfully!');
+    } catch (\Throwable $e) {
+        Log::channel('import')->error('❌ Sign-ins import failed.', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
 
-            return redirect()->route('dashboard')
-                ->with('success', '✅ Sign-ins imported successfully!');
+        Log::error('❌ Sign-ins import failed.', [
+            'error' => $e->getMessage(),
+        ]);
 
-        } catch (\Exception $e) {
-            Log::error('Sign-Ins Import Failed: ' . $e->getMessage());
-
-            return redirect()->route('imports.index')
-                ->with('error', '❌ Failed to import sign-ins. Please check your file and try again.');
-        }
+        return redirect()->route('dashboard')->with('error', '❌ Failed to import sign-ins: ' . $e->getMessage());
     }
+}
+    
 }
