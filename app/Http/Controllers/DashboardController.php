@@ -3,46 +3,34 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\LoginFilterService;
 
 class DashboardController extends Controller
 {
+    protected $filterService;
+
+    public function __construct(LoginFilterService $filterService)
+    {
+        $this->filterService = $filterService;
+    }
+
     public function index(Request $request)
     {
-        // Inputs
-        $rangeInput  = $request->input('range');
-        $systemInput = $request->input('system');
-        $search      = $request->input('search');
+        // Parse all filters
+        $filters = $this->filterService->parseFilters($request);
 
-        // Date Range Determination
-        switch ($rangeInput) {
-            case 'this_month':
-                $startDate  = Carbon::now()->startOfMonth();
-                $endDate    = Carbon::now()->endOfMonth();
-                $rangeLabel = 'This Month';
-                break;
-            case 'last_month':
-                $startDate  = Carbon::now()->subMonth()->startOfMonth();
-                $endDate    = Carbon::now()->subMonth()->endOfMonth();
-                $rangeLabel = 'Last Month';
-                break;
-            case 'last_3_months':
-                $startDate  = Carbon::now()->subMonths(3)->startOfMonth();
-                $endDate    = Carbon::now()->endOfMonth();
-                $rangeLabel = 'Last 3 Months';
-                break;
-            default:
-                $startDate  = Carbon::now()->subDays(30);
-                $endDate    = Carbon::now();
-                $rangeLabel = 'Last 30 Days';
-        }
+        $startDate    = $filters['startDate'];
+        $endDate      = $filters['endDate'];
+        $rangeInput   = $filters['range'];
+        $rangeLabel   = $filters['rangeLabel'];
+        $systemInput  = $filters['system'];
+        $search       = $filters['search'];
+        $totalDays    = $startDate->diffInDays($endDate) + 1;
 
-        $totalDays = $startDate->diffInDays($endDate) + 1;
-
-        // Users with Sign-in Counts
-        $users = User::select('users.id', 'users.displayName', 'users.userPrincipalName') // Explicitly select columns
+        // Fetch Users + Sign-in Count
+        $users = User::select('users.id', 'users.displayName', 'users.userPrincipalName')
             ->withCount([
                 'signIns as sign_ins_count' => function ($query) use ($startDate, $endDate, $systemInput) {
                     $query->whereBetween('date_utc', [$startDate, $endDate]);
@@ -54,13 +42,13 @@ class DashboardController extends Controller
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('displayName', 'like', "%{$search}%")
-                      ->orWhere('userPrincipalName', 'like', "%{$search}%");
+                        ->orWhere('userPrincipalName', 'like', "%{$search}%");
                 });
             })
             ->with(['signIns' => function ($query) use ($startDate, $endDate, $systemInput) {
                 $query->whereBetween('date_utc', [$startDate, $endDate])
-                      ->orderBy('date_utc', 'desc')
-                      ->limit(5);
+                    ->orderBy('date_utc', 'desc')
+                    ->limit(5);
                 if ($systemInput) {
                     $query->where('application', $systemInput);
                 }
@@ -68,17 +56,17 @@ class DashboardController extends Controller
             ->orderBy('displayName')
             ->paginate(10);
 
-        // Logged-in User Count
+        // Count: Logged-in vs Not Logged-in
         $loggedInCount = User::whereHas('signIns', function ($query) use ($startDate, $endDate, $systemInput) {
-                $query->whereBetween('date_utc', [$startDate, $endDate]);
-                if ($systemInput) {
-                    $query->where('application', $systemInput);
-                }
-            })->count();
+            $query->whereBetween('date_utc', [$startDate, $endDate]);
+            if ($systemInput) {
+                $query->where('application', $systemInput);
+            }
+        })->count();
 
         $notLoggedInCount = User::count() - $loggedInCount;
 
-        // Recent Sign-Ins list
+        // Fetch recent sign-ins
         $signInsQuery = DB::table('signin_logs')
             ->join('users', 'signin_logs.user_id', '=', 'users.id')
             ->select(
@@ -99,13 +87,7 @@ class DashboardController extends Controller
             ->get();
 
         // Systems list
-        $systems = [
-            'D365 LIVE', 'FIT ERP', 'FIT EXPRESS', 'FIT EXPRESS UAT',
-            'FIT ERP UAT', 'ODOO', 'OPS', 'OPS UAT'
-        ];
-
-        // Debug: Uncomment to inspect $users data
-        // dd($users);
+        $systems = $this->filterService->getSystemList();
 
         return view('dashboard', compact(
             'users',
