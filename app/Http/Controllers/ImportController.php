@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Imports\UsersImport;
-use App\Imports\InteractiveSignInsImport;
+use App\Imports\SigninImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,28 +18,28 @@ class ImportController extends Controller
      */
     public function importUsers(Request $request)
     {
-        try {
-            // Validate file exists and is CSV or TXT
-            $request->validate([
-                'import_file' => 'required|mimes:csv,txt',
-            ]);
+        $request->validate([
+            'import_file' => 'required|mimes:csv,txt',
+        ], [
+            'import_file.required' => 'Please select a CSV file to upload.',
+            'import_file.mimes' => 'The file must be a CSV or TXT file.',
+        ]);
 
+        try {
             $file = $request->file('import_file');
 
-            // Log file details for debugging
             Log::info('Users Import - Uploaded File Path: ' . $file->getRealPath());
 
-            // Perform the import
             Excel::import(new UsersImport, $file);
 
-            // Redirect to dashboard with success message
-            return redirect()->route('dashboard')->with('success', 'Users imported successfully!');
+            return redirect()->route('dashboard')
+                ->with('success', '✅ Users imported successfully!');
+
         } catch (\Exception $e) {
-            // Log error details for troubleshooting
             Log::error('Users Import Failed: ' . $e->getMessage());
 
-            // Redirect back to the import page with error message
-            return redirect()->back()->with('error', 'Failed to import users. Please try again.');
+            return redirect()->route('imports.index')
+                ->with('error', '❌ Failed to import users. Please check your file and try again.');
         }
     }
 
@@ -51,28 +51,28 @@ class ImportController extends Controller
      */
     public function importSignIns(Request $request)
     {
-        try {
-            // Validate file exists and is CSV or TXT
-            $request->validate([
-                'import_file' => 'required|mimes:csv,txt',
-            ]);
+        $request->validate([
+            'import_file' => 'required|mimes:csv,txt',
+        ], [
+            'import_file.required' => 'Please select a CSV file to upload.',
+            'import_file.mimes' => 'The file must be a CSV or TXT file.',
+        ]);
 
+        try {
             $file = $request->file('import_file');
 
-            // Log file details for debugging
             Log::info('Sign-Ins Import - Uploaded File Path: ' . $file->getRealPath());
 
-            // Perform the import
-            Excel::import(new InteractiveSignInsImport, $file);
+            Excel::import(new SigninImport, $file);
 
-            // Redirect to dashboard with success message
-            return redirect()->route('dashboard')->with('success', 'Sign-ins imported successfully!');
+            return redirect()->route('dashboard')
+                ->with('success', '✅ Sign-ins imported successfully!');
+
         } catch (\Exception $e) {
-            // Log error details for troubleshooting
             Log::error('Sign-Ins Import Failed: ' . $e->getMessage());
 
-            // Redirect back to the import page with error message
-            return redirect()->back()->with('error', 'Failed to import sign-ins. Please try again.');
+            return redirect()->route('imports.index')
+                ->with('error', '❌ Failed to import sign-ins. Please check your file and try again.');
         }
     }
 }

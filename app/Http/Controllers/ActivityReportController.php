@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,14 +40,14 @@ class ActivityReportController extends Controller
                 'users.userPrincipalName',
 
                 // Aggregate data: total logins, first and last login timestamps
-                DB::raw('COUNT(interactive_sign_ins.user_id) AS login_count'),
-                DB::raw('MIN(interactive_sign_ins.date_utc) AS first_login'),
-                DB::raw('MAX(interactive_sign_ins.date_utc) AS last_login')
+                DB::raw('COUNT(signin_logs.user_id) AS login_count'),
+                DB::raw('MIN(signin_logs.date_utc) AS first_login'),
+                DB::raw('MAX(signin_logs.date_utc) AS last_login')
             ])
             // Left join to include users even if they have no sign-ins
-            ->leftJoin('interactive_sign_ins', function ($join) use ($startDate, $endDate) {
-                $join->on('interactive_sign_ins.user_id', '=', 'users.id')
-                     ->whereBetween('interactive_sign_ins.date_utc', [$startDate, $endDate]);
+            ->leftJoin('signin_logs', function ($join) use ($startDate, $endDate) {
+                $join->on('signin_logs.user_id', '=', 'users.id')
+                     ->whereBetween('signin_logs.date_utc', [$startDate, $endDate]);
             })
             // Group by required user fields for aggregation
             ->groupBy('users.id', 'users.displayName', 'users.userPrincipalName')

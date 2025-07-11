@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\User;
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,13 +27,13 @@ class UserDashboardTest extends TestCase
         ]);
 
         // Add 2 sign-ins for user1 under system SCM
-        InteractiveSignIn::factory()->create([
+        SigninLog::factory()->create([
             'username' => 'test1@example.com',
             'date_utc' => Carbon::now()->subDays(1),
             'system' => 'SCM',
         ]);
 
-        InteractiveSignIn::factory()->create([
+        SigninLog::factory()->create([
             'username' => 'test1@example.com',
             'date_utc' => Carbon::now()->subDays(2),
             'system' => 'SCM',

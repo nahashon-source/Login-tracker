@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
 use App\Models\User;
 use League\Csv\Reader;
 use League\Csv\Exception;
@@ -46,7 +46,7 @@ class ImportSignInsCommand extends Command
                 continue;
             }
 
-            InteractiveSignIn::create([
+            SigninLog::create([
                 'user_id' => $user->id,
                 'username' => $record['username'],
                 'date_utc' => Carbon::parse($record['date_utc']),

@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('signin_logs', function (Blueprint $table) {
             //
-            $table->softDeletes();
-
         });
     }
 
@@ -23,10 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('signin_logs', function (Blueprint $table) {
             //
-            $table->dropSoftDeletes();  // Drops the 'deleted_at' column
-
         });
     }
 };

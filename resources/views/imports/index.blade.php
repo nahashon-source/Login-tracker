@@ -31,6 +31,18 @@
         </div>
     @endif
 
+    {{-- Validation Errors --}}
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <strong>Import failed due to the following errors:</strong>
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- Import Forms --}}
     <div class="row">
         <div class="col-md-6">
@@ -39,7 +51,7 @@
                 @csrf
                 <div class="mb-3">
                     <label for="userFile" class="form-label">Upload Users CSV</label>
-                    <input type="file" class="form-control" id="userFile" name="file" accept=".csv" required>
+                    <input type="file" class="form-control" id="userFile" name="import_file" accept=".csv" required>
                 </div>
                 <button type="submit" class="btn btn-primary">Import</button>
             </form>
@@ -51,7 +63,7 @@
                 @csrf
                 <div class="mb-3">
                     <label for="signInFile" class="form-label">Upload Sign-Ins CSV</label>
-                    <input type="file" class="form-control" id="signInFile" name="file" accept=".csv" required>
+                    <input type="file" class="form-control" id="signInFile" name="import_file" accept=".csv" required>
                 </div>
                 <button type="submit" class="btn btn-primary">Import</button>
             </form>

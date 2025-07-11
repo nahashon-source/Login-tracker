@@ -32,7 +32,7 @@ class ExportNoSignins extends Command
         // Fetch userPrincipalNames without any sign-ins
         $noSignins = DB::table('users')
             ->whereNotIn('id', function ($q) {
-                $q->select('user_id')->from('interactive_sign_ins');
+                $q->select('user_id')->from('signin_logs');
             })
             ->orderBy('userPrincipalName')
             ->pluck('userPrincipalName');

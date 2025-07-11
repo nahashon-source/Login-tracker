@@ -2,22 +2,21 @@
 
 namespace App\Imports;
 
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class InteractiveSignInsImport implements ToModel, WithHeadingRow
+class SigninLogsImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
         $row = array_change_key_case($row, CASE_LOWER);
 
-        // Look up user by userPrincipalName via username column in CSV
         $userId = null;
-        $userPrincipalName = strtolower(trim($row['username']));
+        $userPrincipalName = strtolower(trim($row['username'] ?? ''));
 
         if (filter_var($userPrincipalName, FILTER_VALIDATE_EMAIL)) {
             $user = User::whereRaw('LOWER(TRIM(userPrincipalName)) = ?', [$userPrincipalName])->first();
@@ -27,12 +26,12 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
         }
 
         if (is_null($userId)) {
-            Log::channel('import')->warning("User not found for username: {$row['username']}");
+            Log::channel('import')->warning("User not found for username: {$userPrincipalName}");
             return null;
         }
 
-        return new InteractiveSignIn([
-            'date_utc'                          => !empty($row['date (utc)']) ? Carbon::parse($row['date (utc)'])->format('Y-m-d H:i:s') : null,
+        return new SigninLog([
+            'date_utc'                          => Carbon::parse($row['date (utc)'])->format('Y-m-d H:i:s'),
             'request_id'                        => $row['request id'] ?? null,
             'user_agent'                        => $row['user agent'] ?? null,
             'correlation_id'                    => $row['correlation id'] ?? null,
@@ -42,7 +41,7 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
             'user_type'                         => $row['user type'] ?? null,
             'cross_tenant_access_type'          => $row['cross tenant access type'] ?? null,
             'incoming_token_type'               => $row['incoming token type'] ?? null,
-            'authentication_protocol'          => $row['authentication protocol'] ?? null,
+            'authentication_protocol'           => $row['authentication protocol'] ?? null,
             'unique_token_identifier'           => $row['unique token identifier'] ?? null,
             'original_transfer_method'          => $row['original transfer method'] ?? null,
             'client_credential_type'            => $row['client credential type'] ?? null,
@@ -71,7 +70,7 @@ class InteractiveSignInsImport implements ToModel, WithHeadingRow
             'multifactor_auth_result'           => $row['multifactor authentication result'] ?? null,
             'multifactor_auth_method'           => $row['multifactor authentication auth method'] ?? null,
             'multifactor_auth_detail'           => $row['multifactor authentication auth detail'] ?? null,
-            'authentication_requirement'       => $row['authentication requirement'] ?? null,
+            'authentication_requirement'        => $row['authentication requirement'] ?? null,
             'sign_in_identifier'                => $row['sign-in identifier'] ?? null,
             'session_id'                        => $row['session id'] ?? null,
             'ip_address_seen_by_resource'       => $row['ip address (seen by resource)'] ?? null,

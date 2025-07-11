@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
 use App\Models\User;
 
 class DeleteDummySignIns extends Command
@@ -22,7 +22,7 @@ class DeleteDummySignIns extends Command
             return 0;
         }
 
-        $count = InteractiveSignIn::whereIn('user_id', $dummyUserIds)->count();
+        $count = SigninLOg::whereIn('user_id', $dummyUserIds)->count();
 
         if ($count === 0) {
             $this->info('✅ No sign-ins associated with dummy users found.');
@@ -30,7 +30,7 @@ class DeleteDummySignIns extends Command
         }
 
         if ($this->confirm("⚠️  {$count} sign-ins found for dummy users. Do you want to delete them?")) {
-            InteractiveSignIn::whereIn('user_id', $dummyUserIds)->delete();
+            SigninLog::whereIn('user_id', $dummyUserIds)->delete();
             $this->info("✅ {$count} sign-ins deleted successfully.");
         } else {
             $this->info('❌ Operation cancelled. No sign-ins deleted.');

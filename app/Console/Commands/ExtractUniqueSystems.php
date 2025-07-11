@@ -7,11 +7,11 @@ use Illuminate\Console\Command;
 class ExtractUniqueSystems extends Command
 {
     protected $signature = 'csv:extract-systems';
-    protected $description = 'Extract unique system values from interactive_sign_ins.csv';
+    protected $description = 'Extract unique system values from signin_logs.csv';
 
     public function handle()
     {
-        $filePath = storage_path('app/public/interactive_sign_ins.csv');
+        $filePath = storage_path('app/public/signin_logs.csv');
         $systems = [];
 
         if (!file_exists($filePath)) {

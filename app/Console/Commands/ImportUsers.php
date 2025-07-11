@@ -21,6 +21,8 @@ class ImportUsers extends Command
      *
      * @var string
      */
+
+     
     protected $description = 'Import users from a CSV file';
 
     /**

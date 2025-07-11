@@ -38,7 +38,7 @@ class ImportSignInsCommandTest extends TestCase
         $exitCode = Artisan::call('import:signins', ['file' => $csvPath]);
 
         // Assert: record exists in database
-        $this->assertDatabaseHas('interactive_sign_ins', [
+        $this->assertDatabaseHas('signin_logs', [
             'username'              => 'test@example.com',
             'system'                => 'SCM',
             'resource_display_name' => 'FITerp UAT',

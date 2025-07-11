@@ -4,8 +4,8 @@ $app = require_once __DIR__ . '/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 try {
-    $inputFile = storage_path('app/public/interactive_sign_ins.csv');
-    $outputFile = storage_path('app/public/interactive_sign_ins_cleaned.csv');
+    $inputFile = storage_path('app/public/signin_logs.csv');
+    $outputFile = storage_path('app/public/signin_logs_cleaned.csv');
     $expectedFields = 62; // Based on fixed header
 
     if (!file_exists($inputFile)) {

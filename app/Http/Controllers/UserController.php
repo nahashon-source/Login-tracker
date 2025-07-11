@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\InteractiveSignIn;
+use App\Models\SigninLog;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -88,7 +89,7 @@ class UserController extends Controller
         $users = $query->paginate(10)->withQueryString();
 
         // ✅ Updated: Count logged-in users using username/email instead of user_id
-        $loggedInEmails = InteractiveSignIn::whereBetween('date_utc', [$start, $end])
+        $loggedInEmails = SigninLog::whereBetween('date_utc', [$start, $end])
             ->pluck('username')
             ->filter()
             ->unique()

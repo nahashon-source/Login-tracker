@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-
 /**
  * App\Models\User
  *
@@ -124,12 +123,11 @@ class User extends Authenticatable
      */
     public function signIns()
     {
-        return $this->hasMany(InteractiveSignIn::class, 'username', 'userPrincipalName');
+        return $this->hasMany(SigninLog::class, 'user_id', 'id'); // Updated to match interactiveSignIns
     }
     
     public function interactiveSignIns()
     {
-        return $this->hasMany(InteractiveSignIn::class, 'user_id', 'id');
+        return $this->hasMany(SigninLog::class, 'user_id', 'id');
     }
-    
 }
