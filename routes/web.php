@@ -34,3 +34,4 @@ Route::post('/import/sign-ins', [ImportController::class, 'importSignIns'])->nam
 
 // User management resource routes (show, create, edit, delete, etc.)
 Route::resource('users', UserController::class);
+// routes/web.php

@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\SigninLog;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
-
 
 class UserController extends Controller
 {
@@ -65,11 +63,93 @@ class UserController extends Controller
     {
         [$start, $end] = $this->resolveDateRange($request);
         $rangeInput = $request->input('range', 'this_month');
-
+        $system = $request->input('system', 'Odoo');
+        $search = $request->input('search');
+    
+        if ($request->ajax()) {
+            DB::enableQueryLog();
+            Log::info('AJAX Request', [
+                'range' => $rangeInput,
+                'system' => $system,
+                'search' => $search,
+                'start' => $start->toDateTimeString(),
+                'end' => $end->toDateTimeString()
+            ]);
+    
+            $query = User::query();
+            if ($request->filled('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('displayName', 'like', "%{$search}%")
+                        ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                        ->orWhere('mail1', 'like', "%{$search}%")
+                        ->orWhere('mail2', 'like', "%{$search}%");
+                });
+            }
+    
+            if ($system) {
+                $query->whereHas('signIns', function ($q) use ($start, $end, $system) {
+                    $q->whereBetween('date_utc', [$start, $end])
+                        ->where(DB::raw('LOWER(system)'), strtolower($system));
+                });
+            } else {
+                $query->whereHas('signIns', function ($q) use ($start, $end) {
+                    $q->whereBetween('date_utc', [$start, $end]);
+                });
+            }
+    
+            $query->withCount(['signIns as sign_ins_count' => function ($q) use ($start, $end, $system) {
+                $q->whereBetween('date_utc', [$start, $end]);
+                if ($system) {
+                    $q->where(DB::raw('LOWER(system)'), strtolower($system));
+                }
+            }])
+            ->with(['signIns' => function ($q) use ($start, $end, $system) {
+                $q->whereBetween('date_utc', [$start, $end]);
+                if ($system) {
+                    $q->where(DB::raw('LOWER(system)'), strtolower($system));
+                }
+                $q->latest('date_utc');
+            }]);
+    
+            $users = $query->paginate($this->perPage)->withQueryString();
+            $totalDays = $start->diffInDays($end) + 1;
+    
+            $logins = SigninLog::whereBetween('date_utc', [$start, $end])
+                ->when($system, function ($query) use ($system) {
+                    return $query->where(DB::raw('LOWER(system)'), strtolower($system));
+                })
+                ->get();
+            $loggedInEmails = $logins->pluck('username')->filter()->unique()->map(fn($email) => strtolower(trim($email)));
+            $totalUsers = User::count();
+            $loggedInCount = $loggedInEmails->isEmpty() ? 0 : User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
+            $notLoggedInCount = $totalUsers - $loggedInCount;
+    
+            // Get all distinct systems, sorted alphabetically
+            $systems = SigninLog::select('system')->distinct()->pluck('system')->sort()->values()->toArray();
+            Log::info('Systems for Dropdown', ['systems' => $systems]);
+    
+            Log::debug('Executed Queries', DB::getQueryLog());
+            Log::info('AJAX Response Data', [
+                'totalUsers' => $totalUsers,
+                'loggedInCount' => $loggedInCount,
+                'notLoggedInCount' => $notLoggedInCount,
+                'userCount' => $users->count(),
+                'sampleUsers' => $users->take(5)->toArray()
+            ]);
+            DB::disableQueryLog();
+    
+            return response()->json([
+                'totalUsers' => $totalUsers,
+                'loggedInCount' => $loggedInCount,
+                'notLoggedInCount' => $notLoggedInCount,
+                'users' => $users->items(),
+                'totalDays' => $totalDays,
+                'pagination' => (string) $users->links()
+            ]);
+        }
+    
         $query = User::query();
-
         if ($request->filled('search')) {
-            $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('displayName', 'like', "%{$search}%")
                     ->orWhere('userPrincipalName', 'like', "%{$search}%")
@@ -77,43 +157,67 @@ class UserController extends Controller
                     ->orWhere('mail2', 'like', "%{$search}%");
             });
         }
-
-        $query->withCount(['interactiveSignIns as login_count' => function ($q) use ($start, $end) {
+    
+        if ($system) {
+            $query->whereHas('signIns', function ($q) use ($start, $end, $system) {
+                $q->whereBetween('date_utc', [$start, $end])
+                    ->where(DB::raw('LOWER(system)'), strtolower($system));
+            });
+        } else {
+            $query->whereHas('signIns', function ($q) use ($start, $end) {
+                $q->whereBetween('date_utc', [$start, $end]);
+            });
+        }
+    
+        $query->withCount(['signIns as sign_ins_count' => function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
+            if ($system) {
+                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+            }
+        }])
+        ->with(['signIns' => function ($q) use ($start, $end, $system) {
+            $q->whereBetween('date_utc', [$start, $end]);
+            if ($system) {
+                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+            }
+            $q->latest('date_utc');
         }]);
-
-        $query->with(['interactiveSignIns' => function ($q) use ($start, $end) {
-            $q->whereBetween('date_utc', [$start, $end])->latest('date_utc');
-        }]);
-
-        $users = $query->paginate(10)->withQueryString();
-
-        // ✅ Updated: Count logged-in users using username/email instead of user_id
-        $loggedInEmails = SigninLog::whereBetween('date_utc', [$start, $end])
-            ->pluck('username')
-            ->filter()
-            ->unique()
-            ->map(fn($email) => strtolower(trim($email)));
-
-        $loggedInCount = User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
-        $notLoggedInCount = User::whereNotIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
-
-        return view('dashboard', compact('users', 'loggedInCount', 'notLoggedInCount', 'rangeInput'));
+    
+        $users = $query->paginate($this->perPage)->withQueryString();
+        $logins = SigninLog::whereBetween('date_utc', [$start, $end])
+            ->when($system, function ($query) use ($system) {
+                return $query->where(DB::raw('LOWER(system)'), strtolower($system));
+            })
+            ->get();
+        $loggedInEmails = $logins->pluck('username')->filter()->unique()->map(fn($email) => strtolower(trim($email)));
+        $totalUsers = User::count();
+        $loggedInCount = $loggedInEmails->isEmpty() ? 0 : User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
+        $notLoggedInCount = $totalUsers - $loggedInCount;
+    
+        // Get all distinct systems, sorted alphabetically
+        $systems = SigninLog::select('system')->distinct()->pluck('system')->sort()->values()->toArray();
+        Log::info('Systems for Dropdown (Non-AJAX)', ['systems' => $systems]);
+    
+        $rangeLabel = $this->getRangeLabel($rangeInput);
+        $systemInput = $system ?: 'All Systems';
+    
+        return view('dashboard', compact('users', 'loggedInCount', 'notLoggedInCount', 'rangeInput', 'system', 'totalUsers', 'rangeLabel', 'systemInput', 'systems'));
     }
 
     public function show(Request $request, $id)
     {
         $user = User::findOrFail($id);
-
         $range = $request->input('range', 'this_month');
-        $system = $request->input('system' , 'SCM');
+        $system = $request->input('system', 'Windows Sign In'); // Default to a valid application
 
         [$start, $end] = $this->resolveDateRange($range);
 
-        $signInsQuery = $user->interactiveSignIns()
+        $signInsQuery = $user->signIns()
             ->whereBetween('date_utc', [$start, $end]);
 
-           
+        if ($system) {
+            $signInsQuery->where(DB::raw('LOWER(system)'), strtolower($system));    
+            }
 
         $signIns = $signInsQuery->orderBy('date_utc', 'desc')
             ->paginate($this->perPage)
@@ -127,14 +231,15 @@ class UserController extends Controller
         [$start, $end] = $this->resolveDateRange($request);
         $search = $request->input('search');
         $range = $request->input('range', 'this_month');
-        $system = $request->input('system');
-    
-        $query = User::whereHas('interactiveSignIns', function ($q) use ($start, $end, $system) {
+        $system = $request->input('system', 'Windows Sign In'); // Default to a valid application
+
+        $query = User::whereHas('signIns', function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
-    
-          
+            if ($system) {
+                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+            }
         });
-    
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('displayName', 'like', "%{$search}%")
@@ -143,45 +248,44 @@ class UserController extends Controller
                     ->orWhere('mail2', 'like', "%{$search}%");
             });
         }
-    
-        $users = $query->withCount(['interactiveSignIns as login_count' => function ($q) use ($start, $end, $system) {
+
+        $users = $query->withCount(['signIns as login_count' => function ($q) use ($start, $end, $system) {
             $q->whereBetween('date_utc', [$start, $end]);
-    
-        }])->paginate(10)->withQueryString();
-    
+            if ($system) {
+                $q->where(DB::raw('LOWER(application)'), strtolower($system)); // Use 'application'
+            }
+        }])->paginate($this->perPage)->withQueryString();
+
         return view('users.logged-in', compact('users', 'range', 'search', 'system'));
     }
-    
 
     public function notLoggedInUsers(Request $request)
-{
-    [$start, $end] = $this->resolveDateRange($request);
-    $search = $request->input('search');
-    $range = $request->input('range', 'this_month');
-    $system = $request->input('system');
+    {
+        [$start, $end] = $this->resolveDateRange($request);
+        $search = $request->input('search');
+        $range = $request->input('range', 'this_month');
+        $system = $request->input('system', 'Windows Sign In'); // Default to a valid application
 
-    $query = User::whereDoesntHave('interactiveSignIns', function ($q) use ($start, $end, $system) {
-        $q->whereBetween('date_utc', [$start, $end]);
-
-        // if ($system) {
-        //     $q->where('resource_display_name', $system);
-        // }
-    });
-
-    if ($search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('displayName', 'like', "%{$search}%")
-                ->orWhere('userPrincipalName', 'like', "%{$search}%")
-                ->orWhere('mail1', 'like', "%{$search}%")
-                ->orWhere('mail2', 'like', "%{$search}%");
+        $query = User::whereDoesntHave('signIns', function ($q) use ($start, $end, $system) {
+            $q->whereBetween('date_utc', [$start, $end]);
+            if ($system) {
+                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+            }
         });
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('displayName', 'like', "%{$search}%")
+                    ->orWhere('userPrincipalName', 'like', "%{$search}%")
+                    ->orWhere('mail1', 'like', "%{$search}%")
+                    ->orWhere('mail2', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->paginate($this->perPage)->withQueryString();
+
+        return view('users.not-logged-in', compact('users', 'range', 'search', 'system'));
     }
-
-    $users = $query->paginate(10)->withQueryString();
-
-    return view('users.not-logged-in', compact('users', 'range', 'search', 'system'));
-}
-
 
     protected function resolveDateRange($input = null)
     {
@@ -196,38 +300,33 @@ class UserController extends Controller
             }
         }
 
-        // switch ($input) {
-        //     case 'last_month':
-        //         $start = now()->subMonthNoOverflow()->startOfMonth();
-        //         $end = now()->subMonthNoOverflow()->endOfMonth();
-        //         break;
-        //     case 'last_3_months':
-        //         $start = now()->subMonthsNoOverflow(3)->startOfMonth();
-        //         $end = now()->endOfDay();
-        //         break;
-        //     default:
-        //         $start = now()->startOfMonth();
-        //         $end = now()->endOfDay();
-        // }
-
-
         switch ($input) {
             case 'last_month':
-                $start = Carbon::create(2025, 7, 1)->startOfDay();
-                $end   = Carbon::create(2025, 7, 1)->endOfDay();
+                $start = now()->subMonthNoOverflow()->startOfMonth();
+                $end = now()->subMonthNoOverflow()->endOfMonth();
                 break;
             case 'last_3_months':
-                $start = Carbon::create(2025, 7, 1)->startOfDay();
-                $end   = Carbon::create(2025, 7, 2)->endOfDay();
+                $start = now()->subMonthsNoOverflow(3)->startOfMonth();
+                $end = now()->endOfDay();
                 break;
-            default:
-                $start = Carbon::create(2025, 7, 1)->startOfDay();
-                $end   = Carbon::create(2025, 7, 2)->endOfDay();
+            default: // this_month or custom
+                $start = now()->startOfMonth();
+                $end = now()->endOfDay();
         }
-        
+
         Log::info('Resolved Date Range', ['start' => $start, 'end' => $end]);
 
-
         return [$start, $end];
+    }
+
+    private function getRangeLabel($range)
+    {
+        return match ($range) {
+            'this_month' => 'This Month',
+            'last_month' => 'Last Month',
+            'last_3_months' => 'Last 3 Months',
+            'custom' => 'Custom Range',
+            default => 'This Month',
+        };
     }
 }

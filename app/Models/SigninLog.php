@@ -4,33 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 /**
  * Model representing sign-in records for application users.
- *
- * Each record logs metadata about a user's sign-in attempt, 
- * including authentication details, IP addresses, device info, 
- * and conditional access outcomes.
  */
 class SigninLog extends Model
 {
     use HasFactory;
 
-    /**
-     * Explicitly define the database table used by this model.
-     *
-     * @var string
-     */
-    protected $table = 'signin_logs'; // ✅ Explicitly match your actual table name
+    protected $table = 'signin_logs';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'date_utc', 'request_id', 'user_agent', 'correlation_id', 'user_id',
-        'user', 'username', 'user_type', 'cross_tenant_access_type',
+        'system', 'user', 'username', 'user_type', 'cross_tenant_access_type',
         'incoming_token_type', 'authentication_protocol', 'unique_token_identifier',
         'original_transfer_method', 'client_credential_type',
         'token_protection_sign_in_session', 'application', 'application_id',
@@ -48,27 +35,63 @@ class SigninLog extends Model
         'federated_token_id', 'federated_token_issuer',
     ];
 
-    /**
-     * Get the user associated with this sign-in event.
-     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Scope: Filter sign-ins within the last 30 days.
-     */
     public function scopeLast30Days($query)
     {
         return $query->where('date_utc', '>=', now()->subDays(30));
     }
 
-    /**
-     * Scope: Order sign-in records by most recent first.
-     */
     public function scopeLatestFirst($query)
     {
         return $query->orderBy('date_utc', 'desc');
+    }
+
+    public function scopeByApplication($query, $application)
+    {
+        return $query->where('application', $application);
+    }
+
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function getDateUtcFormattedAttribute()
+    {
+        return $this->date_utc ? Carbon::parse($this->date_utc)->format('Y-m-d H:i:s') : null;
+    }
+
+    public function getIpAddressFormattedAttribute()
+    {
+        return $this->ip_address ?: 'N/A';
+    }
+
+    public function getStatusLabelAttribute()
+    {
+        return match ($this->status) {
+            'Success' => 'Successful',
+            'Failed' => 'Failed',
+            default => 'Unknown',
+        };
+    }
+
+    public function isSuccessful()
+    {
+        return $this->status === 'Success';
+    }
+
+    public function isFailed()
+    {
+        return $this->status === 'Failed';
+    }
+
+    // Optional: Update to reflect actual systems if needed
+    public static function getSystemList()
+    {
+        return SigninLog::select('system')->distinct()->pluck('system')->toArray();
     }
 }

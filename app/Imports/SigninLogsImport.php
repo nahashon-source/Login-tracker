@@ -18,6 +18,13 @@ class SigninLogsImport implements ToModel, WithHeadingRow
         $userId = null;
         $userPrincipalName = strtolower(trim($row['username'] ?? ''));
 
+        // Skip if username is a UUID (e.g., system accounts or service principals)
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $userPrincipalName)) {
+            Log::channel('import')->warning("Skipping UUID-only username: {$userPrincipalName}");
+            return null;
+        }
+
+        // Proceed only if valid email
         if (filter_var($userPrincipalName, FILTER_VALIDATE_EMAIL)) {
             $user = User::whereRaw('LOWER(TRIM(userPrincipalName)) = ?', [$userPrincipalName])->first();
             if ($user) {
@@ -29,6 +36,23 @@ class SigninLogsImport implements ToModel, WithHeadingRow
             Log::channel('import')->warning("User not found for username: {$userPrincipalName}");
             return null;
         }
+
+        // Map application to system
+        $application = $row['application'] ?? null;
+        $normalizedApp = strtolower(trim($application));
+
+        $systemMapping = [
+            'windows sign in'        => 'SCM',
+            'azure cli'              => 'OPS',
+            'office 365 exchange'    => 'Odoo',
+            'microsoft teams'        => 'Fit Express',
+            'onedrive sync client'   => 'FIT ERP',
+            'fit express uat'        => 'Fit Express UAT',
+            'fiterp uat'             => 'FITerp UAT',
+            'dynamics 365'           => 'D365 Live',
+        ];
+
+        $system = $systemMapping[$normalizedApp] ?? 'SCM';
 
         return new SigninLog([
             'date_utc'                          => Carbon::parse($row['date (utc)'])->format('Y-m-d H:i:s'),
@@ -47,7 +71,8 @@ class SigninLogsImport implements ToModel, WithHeadingRow
             'client_credential_type'            => $row['client credential type'] ?? null,
             'token_protection_sign_in_session'  => $row['token protection - sign in session'] ?? null,
             'token_protection_status_code'      => $row['token protection - sign in session statuscode'] ?? null,
-            'application'                       => $row['application'] ?? null,
+            'application'                       => $application,
+            'system'                            => $system,
             'application_id'                    => $row['application id'] ?? null,
             'resource'                          => $row['resource'] ?? null,
             'resource_id'                       => $row['resource id'] ?? null,
@@ -60,7 +85,7 @@ class SigninLogsImport implements ToModel, WithHeadingRow
             'status'                            => $row['status'] ?? null,
             'sign_in_error_code'                => $row['sign-in error code'] ?? null,
             'failure_reason'                    => $row['failure reason'] ?? null,
-            'clieI am not using interactive sign innt_app'                        => $row['client app'] ?? null,
+            'client_app'                        => $row['client app'] ?? null,
             'device_id'                         => $row['device id'] ?? null,
             'browser'                           => $row['browser'] ?? null,
             'operating_system'                  => $row['operating system'] ?? null,

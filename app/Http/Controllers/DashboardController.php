@@ -2,104 +2,109 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Services\LoginFilterService;
+use App\Services\DashboardStatsService;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use App\Models\SigninLog;
 
 class DashboardController extends Controller
 {
     protected $filterService;
+    protected $statsService;
 
-    public function __construct(LoginFilterService $filterService)
+    public function __construct(LoginFilterService $filterService, DashboardStatsService $statsService)
     {
         $this->filterService = $filterService;
+        $this->statsService = $statsService;
     }
 
     public function index(Request $request)
     {
-        // Parse all filters
         $filters = $this->filterService->parseFilters($request);
 
-        $startDate    = $filters['startDate'];
-        $endDate      = $filters['endDate'];
-        $rangeInput   = $filters['range'];
-        $rangeLabel   = $filters['rangeLabel'];
-        $systemInput  = $filters['system'];
-        $search       = $filters['search'];
-        $totalDays    = $startDate->diffInDays($endDate) + 1;
+        $query = User::query();
 
-        // Fetch Users + Sign-in Count
-        $users = User::select('users.id', 'users.displayName', 'users.userPrincipalName')
-            ->withCount([
-                'signIns as sign_ins_count' => function ($query) use ($startDate, $endDate, $systemInput) {
-                    $query->whereBetween('date_utc', [$startDate, $endDate]);
-                    if ($systemInput) {
-                        $query->where('application', $systemInput);
-                    }
-                }
-            ])
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('displayName', 'like', "%{$search}%")
-                        ->orWhere('userPrincipalName', 'like', "%{$search}%");
-                });
-            })
-            ->with(['signIns' => function ($query) use ($startDate, $endDate, $systemInput) {
-                $query->whereBetween('date_utc', [$startDate, $endDate])
-                    ->orderBy('date_utc', 'desc')
-                    ->limit(5);
-                if ($systemInput) {
-                    $query->where('application', $systemInput);
-                }
-            }])
-            ->orderBy('displayName')
-            ->paginate(10);
-
-        // Count: Logged-in vs Not Logged-in
-        $loggedInCount = User::whereHas('signIns', function ($query) use ($startDate, $endDate, $systemInput) {
-            $query->whereBetween('date_utc', [$startDate, $endDate]);
-            if ($systemInput) {
-                $query->where('application', $systemInput);
-            }
-        })->count();
-
-        $notLoggedInCount = User::count() - $loggedInCount;
-
-        // Fetch recent sign-ins
-        $signInsQuery = DB::table('signin_logs')
-            ->join('users', 'signin_logs.user_id', '=', 'users.id')
-            ->select(
-                'users.id',
-                'signin_logs.date_utc',
-                'signin_logs.application',
-                'users.displayName',
-                'users.userPrincipalName as email'
-            )
-            ->whereBetween('signin_logs.date_utc', [$startDate, $endDate]);
-
-        if ($systemInput) {
-            $signInsQuery->where('signin_logs.application', $systemInput);
+        if ($searchTerm = $request->input('search')) {
+            $query->where('displayName', 'like', "%{$searchTerm}%")
+                  ->orWhere('userPrincipalName', 'like', "%{$searchTerm}%");
         }
 
-        $signIns = $signInsQuery
-            ->orderBy('signin_logs.date_utc', 'desc')
-            ->get();
+        $start = null;
+        $end = null;
+        if ($range = $request->input('range')) {
+            switch ($range) {
+                case 'this_month':
+                    $start = now()->startOfMonth();
+                    $end = now()->endOfDay();
+                    break;
+                case 'last_month':
+                    $start = now()->subMonth()->startOfMonth();
+                    $end = now()->subMonth()->endOfMonth();
+                    break;
+                case 'last_3_months':
+                    $start = now()->subMonths(3)->startOfMonth();
+                    $end = now()->endOfDay();
+                    break;
+                case 'custom':
+                    $startDate = $request->input('start_date');
+                    $endDate = $request->input('end_date');
+                    if ($startDate && $endDate) {
+                        $start = Carbon::parse($startDate)->startOfDay();
+                        $end = Carbon::parse($endDate)->endOfDay();
+                    }
+                    break;
+            }
+            if ($start && $end) {
+                $query->whereHas('signIns', function ($query) use ($start, $end) {
+                    $query->whereBetween('date_utc', [$start, $end]);
+                });
+            }
+        }
 
-        // Systems list
-        $systems = $this->filterService->getSystemList();
+        $selectedSystem = $request->input('system', 'Odoo'); // Default to 'Odoo'
+        if ($selectedSystem) {
+            $query->whereHas('signIns', function ($query) use ($selectedSystem) {
+                $query->where('system', $selectedSystem); // Filter on 'system' column
+            });
+        }
 
-        return view('dashboard', compact(
-            'users',
-            'rangeInput',
-            'rangeLabel',
-            'loggedInCount',
-            'notLoggedInCount',
-            'totalDays',
-            'signIns',
-            'systemInput',
-            'systems'
-        ));
+        Log::debug('User query: ' . $query->toSql());
+        Log::debug('Bindings: ', $query->getBindings());
+
+        $users = $query->withCount('signIns')->paginate(10);
+
+        if ($users->isEmpty()) {
+            Log::debug('No users found. Start: ' . ($start ?? 'null') . ', End: ' . ($end ?? 'null') . ', System: ' . $selectedSystem);
+        }
+
+        $systems = SigninLog::select('system')
+            ->when($start && $end, function ($query) use ($start, $end) {
+                return $query->whereBetween('date_utc', [$start, $end]);
+            })
+            ->distinct()
+            ->pluck('system')
+            ->toArray();
+        Log::debug('Available systems: ', $systems);
+
+        $stats = $this->statsService->generateStats($filters);
+
+        return view('dashboard', [
+            'users'              => $users,
+            'totalUsers'         => $stats['totalUsers'],
+            'loggedInCount'      => $stats['loggedInCount'],
+            'notLoggedInCount'   => $stats['notLoggedInCount'],
+            'totalLogins'        => $stats['totalLogins'],
+            'lastLogin'          => $stats['lastLogin'],
+            'signIns'            => $stats['signIns'],
+            'totalDays'          => $stats['totalDays'],
+            'rangeInput'         => $filters['range'],
+            'rangeLabel'         => $filters['rangeLabel'],
+            'systemInput'        => $selectedSystem,
+            'systems'            => $systems,
+        ]);
     }
 
     public function showDashboard()

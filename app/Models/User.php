@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 /**
  * App\Models\User
  *
@@ -125,11 +125,34 @@ class User extends Authenticatable
      */
     public function signIns()
     {
-        return $this->hasMany(SigninLog::class, 'user_id', 'id'); // Updated to match interactiveSignIns
+        return $this->hasMany(SigninLog::class);//, 'user_id', 'id' // Updated to match interactiveSignIns
     }
     
     public function interactiveSignIns()
     {
         return $this->hasMany(SigninLog::class, 'user_id', 'id');
     }
+
+
+    public function signinLogs()
+{
+    return $this->hasMany(SigninLog::class, 'user_id', 'id');
+
+}
+
+
+
+
+/**
+ * Get the systems associated with this user.
+ *
+ * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+ */
+
+public function systems(): BelongsToMany
+{
+    return $this->belongsToMany(System::class, 'application_user', 'user_id', 'application_id')
+                ->withPivot('id');
+}
+
 }

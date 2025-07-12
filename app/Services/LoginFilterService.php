@@ -2,54 +2,87 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Carbon\Carbon;
 
 class LoginFilterService
 {
+    /**
+     * Parse the filter parameters from the request (range, system, search)
+     */
     public function parseFilters(Request $request): array
     {
-        $range = $request->input('range');
-        $system = $request->input('system');
-        $search = $request->input('search');
+        $range = $request->input('range', 'this_month');
+        $system = $request->input('system', 'SCM');
+        $search = $request->input('search', null);
 
-        switch ($range) {
-            case 'this_month':
-                $startDate = Carbon::now()->startOfMonth();
-                $endDate   = Carbon::now()->endOfMonth();
-                $label     = 'This Month';
-                break;
-            case 'last_month':
-                $startDate = Carbon::now()->subMonth()->startOfMonth();
-                $endDate   = Carbon::now()->subMonth()->endOfMonth();
-                $label     = 'Last Month';
-                break;
-            case 'last_3_months':
-                $startDate = Carbon::now()->subMonths(3)->startOfMonth();
-                $endDate   = Carbon::now()->endOfMonth();
-                $label     = 'Last 3 Months';
-                break;
-            default:
-                $startDate = Carbon::now()->subDays(30);
-                $endDate   = Carbon::now();
-                $label     = 'Last 30 Days';
-        }
+        $endDate = Carbon::now()->endOfDay();
+        $startDate = match ($range) {
+            'last_month'     => Carbon::now()->subMonth()->startOfMonth(),
+            'last_3_months'  => Carbon::now()->subMonths(3)->startOfMonth(),
+            default          => Carbon::now()->startOfMonth(),
+        };
+
+        $rangeLabel = match ($range) {
+            'last_month'     => 'Last Month',
+            'last_3_months'  => 'Last 3 Months',
+            default          => 'This Month',
+        };
 
         return [
             'startDate'   => $startDate,
             'endDate'     => $endDate,
-            'range'       => $range ?? 'last_30_days',
-            'rangeLabel'  => $label,
+            'range'       => $range,
+            'rangeLabel'  => $rangeLabel,
             'system'      => $system,
             'search'      => $search,
         ];
     }
 
+    /**
+     * Apply date and system filters to a query (works with Builder or HasMany)
+     */
+    public function applyDateAndSystemFilters(Builder|Relation $query, array $filters): Builder
+    {
+        // Convert relation to builder if needed (e.g., HasMany)
+        if ($query instanceof Relation) {
+            $query = $query->getQuery();
+        }
+
+        // Apply date range filters
+        if (!empty($filters['startDate'])) {
+            $query->where('date_utc', '>=', $filters['startDate']);
+        }
+
+        if (!empty($filters['endDate'])) {
+            $query->where('date_utc', '<=', $filters['endDate']);
+        }
+
+        // Apply system filter (⚠️ adapt field name to your DB: 'application' or 'resource')
+        if (!empty($filters['system'])) {
+            $query->where('application', $filters['system']);  // <- adjust this if your DB uses 'resource'
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get the list of supported systems (for dropdown filtering)
+     */
     public function getSystemList(): array
     {
         return [
-            'D365 LIVE', 'FIT ERP', 'FIT EXPRESS', 'FIT EXPRESS UAT',
-            'FIT ERP UAT', 'ODOO', 'OPS', 'OPS UAT'
+            'SCM',
+            'Odoo',
+            'D365 Live',
+            'Fit Express',
+            'FIT ERP',
+            'Fit Express UAT',
+            'FITerp UAT',
+            'OPS',
+            'OPS UAT',
         ];
     }
 }
