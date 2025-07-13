@@ -72,6 +72,22 @@
         </div>
     </div>
 
+    {{-- Applications Import --}}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <h3>Import Applications</h3>
+            <p class="text-muted">Upload a CSV file with columns: <strong>userPrincipalName</strong> and <strong>system</strong></p>
+            <form action="{{ route('import.applications') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="mb-3">
+                    <label for="applicationFile" class="form-label">Upload Applications CSV</label>
+                    <input type="file" class="form-control" id="applicationFile" name="import_file" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-success">Import Applications</button>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

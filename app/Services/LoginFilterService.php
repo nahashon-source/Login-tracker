@@ -18,11 +18,11 @@ class LoginFilterService
         $system = $request->input('system', 'SCM');
         $search = $request->input('search', null);
 
-        $endDate = Carbon::now()->endOfDay();
+        $endDate = Carbon::create(2025, 7, 31, 23, 59, 59);
         $startDate = match ($range) {
-            'last_month'     => Carbon::now()->subMonth()->startOfMonth(),
-            'last_3_months'  => Carbon::now()->subMonths(3)->startOfMonth(),
-            default          => Carbon::now()->startOfMonth(),
+            'last_month'     => Carbon::create(2025, 6, 1, 0, 0, 0),
+            'last_3_months'  => Carbon::create(2025, 5, 1, 0, 0, 0),
+            default          => Carbon::create(2025, 7, 1, 0, 0, 0),
         };
 
         $rangeLabel = match ($range) {

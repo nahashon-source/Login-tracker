@@ -209,7 +209,7 @@
                     // Update user table
                     var tbody = $('#user-table-body');
                     tbody.empty();
-                    if (response.users && response.users.length > 0) {
+if (response.users  response.users.length > 0) {
                         $('#user-table').html(`
                             <table class="table table-striped table-hover align-middle">
                                 <thead class="table-dark">

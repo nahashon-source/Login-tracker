@@ -1,0 +1,12 @@
+userPrincipalName,system
+user1@example.com,SCM
+user1@example.com,Odoo
+user2@example.com,D365 Live
+user3@example.com,Fit Express
+user4@example.com,FIT ERP
+user5@example.com,Fit Express UAT
+user6@example.com,FITerp UAT
+user7@example.com,OPS
+user8@example.com,OPS UAT
+user9@example.com,SCM
+user10@example.com,Odoo

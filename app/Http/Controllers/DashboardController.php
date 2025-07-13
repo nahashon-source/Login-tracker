@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\SigninLog;
+use App\Models\System;
 
 class DashboardController extends Controller
 {
@@ -23,13 +24,21 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $this->filterService->parseFilters($request);
-
+$filters = $this->filterService->parseFilters($request);
+        
         $query = User::query();
 
         if ($searchTerm = $request->input('search')) {
             $query->where('displayName', 'like', "%{$searchTerm}%")
                   ->orWhere('userPrincipalName', 'like', "%{$searchTerm}%");
+        }
+        
+        // Filter by selected system
+        $selectedSystem = $request->input('system');
+        if ($selectedSystem) {
+            $query->whereHas('systems', function ($query) use ($selectedSystem) {
+                $query->where('name', $selectedSystem);
+            });
         }
 
         $start = null;
@@ -37,16 +46,16 @@ class DashboardController extends Controller
         if ($range = $request->input('range')) {
             switch ($range) {
                 case 'this_month':
-                    $start = now()->startOfMonth();
-                    $end = now()->endOfDay();
+                    $start = Carbon::create(2025, 7, 1, 0, 0, 0);
+                    $end = Carbon::create(2025, 7, 31, 23, 59, 59);
                     break;
                 case 'last_month':
-                    $start = now()->subMonth()->startOfMonth();
-                    $end = now()->subMonth()->endOfMonth();
+                    $start = Carbon::create(2025, 6, 1, 0, 0, 0);
+                    $end = Carbon::create(2025, 6, 30, 23, 59, 59);
                     break;
                 case 'last_3_months':
-                    $start = now()->subMonths(3)->startOfMonth();
-                    $end = now()->endOfDay();
+                    $start = Carbon::create(2025, 5, 1, 0, 0, 0);
+                    $end = Carbon::create(2025, 7, 31, 23, 59, 59);
                     break;
                 case 'custom':
                     $startDate = $request->input('start_date');
@@ -64,12 +73,6 @@ class DashboardController extends Controller
             }
         }
 
-        $selectedSystem = $request->input('system', 'Odoo'); // Default to 'Odoo'
-        if ($selectedSystem) {
-            $query->whereHas('signIns', function ($query) use ($selectedSystem) {
-                $query->where('system', $selectedSystem); // Filter on 'system' column
-            });
-        }
 
         Log::debug('User query: ' . $query->toSql());
         Log::debug('Bindings: ', $query->getBindings());
@@ -80,16 +83,29 @@ class DashboardController extends Controller
             Log::debug('No users found. Start: ' . ($start ?? 'null') . ', End: ' . ($end ?? 'null') . ', System: ' . $selectedSystem);
         }
 
-        $systems = SigninLog::select('system')
-            ->when($start && $end, function ($query) use ($start, $end) {
-                return $query->whereBetween('date_utc', [$start, $end]);
-            })
-            ->distinct()
-            ->pluck('system')
-            ->toArray();
+        $systems = System::orderBy('name')->pluck('name')->toArray();
         Log::debug('Available systems: ', $systems);
 
         $stats = $this->statsService->generateStats($filters);
+
+        // If it's an AJAX request, return JSON
+        if ($request->ajax()) {
+            return response()->json([
+                'users'              => $users->items(),
+                'totalUsers'         => $stats['totalUsers'],
+                'loggedInCount'      => $stats['loggedInCount'],
+                'notLoggedInCount'   => $stats['notLoggedInCount'],
+                'totalLogins'        => $stats['totalLogins'],
+                'lastLogin'          => $stats['lastLogin'],
+                'signIns'            => $stats['signIns'],
+                'totalDays'          => $stats['totalDays'],
+                'rangeInput'         => $filters['range'],
+                'rangeLabel'         => $filters['rangeLabel'],
+                'systemInput'        => $selectedSystem,
+                'systems'            => $systems,
+                'pagination'         => $users->withQueryString()->links()->render(),
+            ]);
+        }
 
         return view('dashboard', [
             'users'              => $users,

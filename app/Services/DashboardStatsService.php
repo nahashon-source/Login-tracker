@@ -54,12 +54,38 @@ class DashboardStatsService
         }
 
         // 🔹 Logged in / not logged in count
-        $loggedInCount = User::whereHas('signIns', function ($q) use ($filters) {
-            $this->filterService->applyDateAndSystemFilters($q, $filters);
+        $loggedInQuery = User::query();
+        
+        // If system filter is applied, filter by users assigned to that system
+        if ($system) {
+            $loggedInQuery->whereHas('systems', function ($q) use ($system) {
+                $q->where('name', $system);
+            });
+        }
+        
+        $loggedInCount = $loggedInQuery->whereHas('signIns', function ($q) use ($filters) {
+            // Only apply date filters, not system filters for sign-ins
+            if (!empty($filters['startDate'])) {
+                $q->where('date_utc', '>=', $filters['startDate']);
+            }
+            if (!empty($filters['endDate'])) {
+                $q->where('date_utc', '<=', $filters['endDate']);
+            }
         })->count();
 
+        // Total users should always be the total count in the database
         $totalUsers = User::count();
-        $notLoggedInCount = $totalUsers - $loggedInCount;
+        
+        // But for "not logged in" calculation, we need to consider the system filter
+        $totalUsersInSystem = User::query();
+        if ($system) {
+            $totalUsersInSystem->whereHas('systems', function ($q) use ($system) {
+                $q->where('name', $system);
+            });
+        }
+        $totalUsersInSystemCount = $totalUsersInSystem->count();
+        
+        $notLoggedInCount = $totalUsersInSystemCount - $loggedInCount;
 
         // 🔹 All sign-ins for listing
         $signIns = DB::table('signin_logs')
