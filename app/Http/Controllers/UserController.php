@@ -220,47 +220,24 @@ class UserController extends Controller
         // Get recent applications used by this user
         $recentApplications = $user->signIns()
             ->whereBetween('date_utc', [$start, $end])
-            ->select('application', 
-                    DB::raw('CASE 
-                        WHEN application LIKE "%Windows Sign In%" THEN "SCM"
-                        WHEN application LIKE "%D365 LIVE%" THEN "SCM"
-                        WHEN application LIKE "%OPS%" THEN "OPS"
-                        WHEN application LIKE "%FIT Express%" THEN "FIT EXPRESS"
-                        WHEN application LIKE "%Odoo%" THEN "Odoo"
-                        ELSE "Other"
-                    END as system'),
+            ->select('application', 'system',
                     DB::raw('COUNT(*) as usage_count'), 
                     DB::raw('MAX(date_utc) as last_used'))
             ->whereNotNull('application')
-            ->groupBy('application')
+            ->groupBy('application', 'system')
             ->orderBy('last_used', 'desc')
             ->limit(10)
             ->get();
 
-        // Get systems used by this user (mapped from applications)
+        // Get systems used by this user (using actual system field)
         $systemsUsed = $user->signIns()
             ->whereBetween('date_utc', [$start, $end])
-            ->select(DB::raw('CASE 
-                        WHEN application LIKE "%Windows Sign In%" THEN "SCM"
-                        WHEN application LIKE "%D365 LIVE%" THEN "SCM"
-                        WHEN application LIKE "%OPS%" THEN "OPS"
-                        WHEN application LIKE "%FIT Express%" THEN "FIT EXPRESS"
-                        WHEN application LIKE "%Odoo%" THEN "Odoo"
-                        ELSE "Other"
-                    END as system'),
+            ->select('system',
                     DB::raw('COUNT(*) as usage_count'), 
                     DB::raw('MAX(date_utc) as last_used'))
-            ->whereNotNull('application')
-            ->groupBy(DB::raw('CASE 
-                        WHEN application LIKE "%Windows Sign In%" THEN "SCM"
-                        WHEN application LIKE "%D365 LIVE%" THEN "SCM"
-                        WHEN application LIKE "%OPS%" THEN "OPS"
-                        WHEN application LIKE "%FIT Express%" THEN "FIT EXPRESS"
-                        WHEN application LIKE "%Odoo%" THEN "Odoo"
-                        ELSE "Other"
-                    END'))
+            ->whereNotNull('system')
+            ->groupBy('system')
             ->orderBy('last_used', 'desc')
-            ->limit(10)
             ->get();
 
         return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications', 'systemsUsed'));

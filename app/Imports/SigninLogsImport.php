@@ -17,24 +17,43 @@ class SigninLogsImport implements ToModel, WithHeadingRow
         $row = array_change_key_case($row, CASE_LOWER);
 
         $userId = null;
-        $userPrincipalName = strtolower(trim($row['username'] ?? ''));
+        $userPrincipalName = trim($row['username'] ?? '');
+        $userDisplayName = trim($row['user'] ?? '');
+        $userIdFromCsv = trim($row['user id'] ?? '');
 
-        // Skip if username is a UUID (e.g., system accounts or service principals)
-        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $userPrincipalName)) {
-            Log::channel('import')->warning("Skipping UUID-only username: {$userPrincipalName}");
-            return null;
-        }
-
-        // Proceed only if valid email
+        // Enhanced user matching logic
+        // 1. First try to match by email if username is an email
         if (filter_var($userPrincipalName, FILTER_VALIDATE_EMAIL)) {
-            $user = User::whereRaw('LOWER(TRIM(userPrincipalName)) = ?', [$userPrincipalName])->first();
+            $user = User::whereRaw('LOWER(TRIM(userPrincipalName)) = ?', [strtolower($userPrincipalName)])->first();
             if ($user) {
                 $userId = $user->id;
+                Log::info("Found user by email: {$userPrincipalName} -> {$userId}");
+            }
+        }
+        
+        // 2. If no user found by email, try to match by display name and then find by email pattern
+        if (is_null($userId) && !empty($userDisplayName)) {
+            $user = User::where('displayName', 'LIKE', '%' . $userDisplayName . '%')->first();
+            if ($user) {
+                $userId = $user->id;
+                Log::info("Found user by display name: {$userDisplayName} -> {$userId}");
+            }
+        }
+        
+        // 3. If username is UUID and we have display name, try to match and use the known email
+        if (is_null($userId) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $userPrincipalName) && !empty($userDisplayName)) {
+            $user = User::where('displayName', 'LIKE', '%' . $userDisplayName . '%')->first();
+            if ($user) {
+                $userId = $user->id;
+                Log::info("Found user by display name for UUID: {$userDisplayName} (UUID: {$userPrincipalName}) -> {$userId}");
+            } else {
+                Log::warning("User not found for UUID {$userPrincipalName} with display name: {$userDisplayName}");
+                return null;
             }
         }
 
         if (is_null($userId)) {
-            Log::channel('import')->warning("User not found for username: {$userPrincipalName}");
+            Log::warning("User not found - Username: {$userPrincipalName}, Display Name: {$userDisplayName}");
             return null;
         }
 
