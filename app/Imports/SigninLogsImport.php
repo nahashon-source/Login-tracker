@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\SigninLog;
 use App\Models\User;
+use App\Models\System;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\Log;
@@ -41,18 +42,27 @@ class SigninLogsImport implements ToModel, WithHeadingRow
         $application = $row['application'] ?? null;
         $normalizedApp = strtolower(trim($application));
 
-        $systemMapping = [
-            'windows sign in'        => 'SCM',
-            'azure cli'              => 'OPS',
-            'office 365 exchange'    => 'Odoo',
-            'microsoft teams'        => 'Fit Express',
-            'onedrive sync client'   => 'FIT ERP',
-            'fit express uat'        => 'Fit Express UAT',
-            'fiterp uat'             => 'FITerp UAT',
-            'dynamics 365'           => 'D365 Live',
-        ];
-
-        $system = $systemMapping[$normalizedApp] ?? 'SCM';
+        // Use the systemmap.php configuration
+        $systemMapping = config('systemmap', []);
+        $system = $systemMapping[$normalizedApp] ?? null;
+        
+        // If no mapping found, try to find a partial match
+        if (!$system) {
+            foreach ($systemMapping as $appKey => $systemName) {
+                if (strpos($normalizedApp, $appKey) !== false || strpos($appKey, $normalizedApp) !== false) {
+                    $system = $systemName;
+                    break;
+                }
+            }
+        }
+        
+        // Default to 'Unknown' if no mapping found
+        $system = $system ?? 'Unknown';
+        
+        // Auto-create system if it doesn't exist
+        if ($system !== 'Unknown') {
+            System::firstOrCreate(['name' => $system]);
+        }
 
         return new SigninLog([
             'date_utc'                          => Carbon::parse($row['date (utc)'])->format('Y-m-d H:i:s'),

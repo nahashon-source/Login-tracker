@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Imports\UsersImport;
 use App\Imports\SigninLogsImport;
-use App\Imports\ApplicationsImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -83,39 +82,4 @@ class ImportController extends Controller
         }
     }
 
-    public function importApplications(Request $request)
-    {
-        $request->validate([
-            'import_file' => 'required|file|mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel',
-        ], [
-            'import_file.required' => 'Please select a CSV file to upload.',
-            'import_file.mimetypes' => 'The file must be a CSV or TXT file.',
-        ]);
-
-        try {
-            $file = $request->file('import_file');
-
-            Log::channel('import')->info('Starting application import...', [
-                'path' => $file->getRealPath(),
-                'originalName' => $file->getClientOriginalName(),
-            ]);
-
-            Excel::import(new ApplicationsImport, $file);
-
-            Log::channel('import')->info('✅ Applications imported successfully.');
-
-            return redirect()->route('dashboard')->with('success', '✅ Applications imported successfully!');
-        } catch (\Throwable $e) {
-            Log::channel('import')->error('❌ Applications import failed.', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            Log::error('❌ Applications import failed.', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return redirect()->route('dashboard')->with('error', '❌ Failed to import applications: ' . $e->getMessage());
-        }
-    }
 }
