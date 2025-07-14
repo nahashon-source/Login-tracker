@@ -71,13 +71,18 @@ class LoginFilterService
 
         // Apply system filter using system mapping
         if (!empty($filters['system'])) {
-            $mappedSystem = collect(config('systemmap'))
+            $mappedSystems = collect(config('systemmap'))
                 ->filter(function ($system) use ($filters) {
                     return $system === $filters['system'];
                 })
-                ->keys()->first();
-            if ($mappedSystem) {
-                $query->where('application', 'LIKE', "%$mappedSystem%");
+                ->keys()
+                ->toArray();
+            if (!empty($mappedSystems)) {
+                $query->where(function ($q) use ($mappedSystems) {
+                    foreach ($mappedSystems as $mappedSystem) {
+                        $q->orWhere('application', 'LIKE', "%$mappedSystem%");
+                    }
+                });
             }
         }
 

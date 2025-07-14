@@ -20,8 +20,8 @@
                     $selectedRange = request('range', 'this_month');
                 @endphp
                 <option value="this_month" {{ $selectedRange == 'this_month' ? 'selected' : '' }}>This Month</option>
+                <option value="last_month" {{ $selectedRange == 'last_month' ? 'selected' : '' }}>Last Month</option>
                 <option value="last_3_months" {{ $selectedRange == 'last_3_months' ? 'selected' : '' }}>Last 3 Months</option>
-                <option value="custom" {{ $selectedRange == 'custom' ? 'selected' : '' }}>Custom Range</option>
             </select>
         </div>
 
@@ -168,7 +168,12 @@
             var range = $('#range').val();
             var system = $('#system').val();
             var search = $('#search').val();
-            var rangeLabel = range === 'custom' ? 'Custom' : range.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+            var rangeLabel = {
+                'this_month': 'This Month',
+                'last_month': 'Last Month',
+                'last_3_months': 'Last 3 Months',
+                'custom': 'Custom'
+            }[range] || range;
             var systemLabel = system || 'All Systems';
 
             console.log('Sending AJAX with:', { range, system, search }); // Debug input
@@ -195,9 +200,9 @@
                     $('#not-logged-in-count').text(response.notLoggedInCount || 0);
 
                     // Update filter summary
-                    $('#range-label').text(rangeLabel).parent().toggle(!!rangeLabel);
-                    $('#system-label').text(systemLabel).parent().toggle(!!system);
-                    $('#search-label').text('Search: ' + (search || '')).parent().toggle(!!search);
+                    $('#range-label').text(rangeLabel).toggle(!!rangeLabel);
+                    $('#system-label').text(systemLabel).toggle(!!system);
+                    $('#search-label').text('Search: ' + (search || '')).toggle(!!search);
                     $('#filter-summary').toggle(!!rangeLabel || !!system || !!search);
 
                     // Update user table

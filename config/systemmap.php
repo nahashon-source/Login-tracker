@@ -5,7 +5,7 @@ return [
     'windows sign in'                            => 'SCM',
     'microsoft azure cli'                        => 'OPS',
     'microsoft exchange rest api based powershell' => 'Odoo',
-    'azure active directory powershell'         => 'FIT EXPRESS',
+    'azure active directory powershell'         => 'Fit Express',
     'microsoft azure powershell'                => 'OPS',
     'azure portal'                              => 'OPS',
     'microsoft office 365 portal'              => 'Office 365',
@@ -16,9 +16,9 @@ return [
     
     // FIT Systems
     'fit erp'                                   => 'FIT ERP',
-    'fit express'                               => 'FIT EXPRESS',
-    ' fit express'                              => 'FIT EXPRESS',
-    'fit express uat'                           => 'FIT EXPRESS UAT',
+    'fit express'                               => 'Fit Express',
+    ' fit express'                              => 'Fit Express',
+    'fit express uat'                           => 'Fit Express UAT',
     'fiterpuat'                                 => 'FIT ERP UAT',
     'fit portal'                                => 'FIT PORTAL',
     'fit dashboard'                             => 'FIT DASHBOARD',
@@ -31,8 +31,8 @@ return [
     // Other Systems
     'odoo'                                      => 'Odoo',
     'scm'                                       => 'SCM',
-    'd365 live'                                 => 'SCM',
-    'd365'                                      => 'SCM',
+    'd365 live'                                 => 'D365 Live',
+    'd365'                                      => 'D365 Live',
     'd368 live'                                 => 'D368 LIVE',
     'd368'                                      => 'D368 LIVE',
     

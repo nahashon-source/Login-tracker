@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
-class ImportInteractiveSignIns extends Command
+class ImportSigninLogsRaw extends Command
 {
     protected $signature = 'import:signin-logs {file}';
     protected $description = 'Import Signin Log records from CSV';

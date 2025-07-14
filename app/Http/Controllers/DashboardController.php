@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\SigninLog;
 use App\Models\System;
+use Illuminate\Support\Facades\Config;
 
 class DashboardController extends Controller
 {
@@ -35,12 +36,26 @@ class DashboardController extends Controller
             });
         }
         
-        // Filter by system - show users who are assigned to the selected system
+        // Filter by system - show users who have used the selected system
         $selectedSystem = $request->input('system');
         if ($selectedSystem) {
-            $query->whereHas('systems', function ($query) use ($selectedSystem) {
-                $query->where('name', $selectedSystem);
-            });
+            // Get all mapped system names from config
+            $mappedSystems = collect(config('systemmap'))
+                ->filter(function ($system) use ($selectedSystem) {
+                    return $system === $selectedSystem;
+                })
+                ->keys()
+                ->toArray();
+            
+            if (!empty($mappedSystems)) {
+                $query->whereHas('signIns', function ($query) use ($mappedSystems) {
+                    $query->where(function ($q) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $q->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
+                });
+            }
         } else {
             // Only filter by activity when no system is selected
             // This ensures we show all users with recent activity when no system filter is applied
@@ -51,9 +66,55 @@ class DashboardController extends Controller
         Log::debug('User query: ' . $query->toSql());
         Log::debug('Bindings: ', $query->getBindings());
 
-        $users = $query->withCount('signIns')
-                       ->with(['signIns' => function($q) {
-                           $q->orderBy('date_utc', 'desc')->limit(1);
+        $users = $query->withCount(['signIns as sign_ins_count' => function ($q) use ($filters) {
+                           // Apply date filters to count only logins in the selected period
+                           if (!empty($filters['startDate'])) {
+                               $q->where('date_utc', '>=', $filters['startDate']);
+                           }
+                           if (!empty($filters['endDate'])) {
+                               $q->where('date_utc', '<=', $filters['endDate']);
+                           }
+                           // Apply system filter
+                           if (!empty($filters['system'])) {
+                               $mappedSystems = collect(config('systemmap'))
+                                   ->filter(function ($system) use ($filters) {
+                                       return $system === $filters['system'];
+                                   })
+                                   ->keys()
+                                   ->toArray();
+                               if (!empty($mappedSystems)) {
+                                   $q->where(function ($query) use ($mappedSystems) {
+                                       foreach ($mappedSystems as $mappedSystem) {
+                                           $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                                       }
+                                   });
+                               }
+                           }
+                       }])
+                       ->with(['signIns' => function ($q) use ($filters) {
+                           // Show recent logins filtered by date and system
+                           if (!empty($filters['startDate'])) {
+                               $q->where('date_utc', '>=', $filters['startDate']);
+                           }
+                           if (!empty($filters['endDate'])) {
+                               $q->where('date_utc', '<=', $filters['endDate']);
+                           }
+                           if (!empty($filters['system'])) {
+                               $mappedSystems = collect(config('systemmap'))
+                                   ->filter(function ($system) use ($filters) {
+                                       return $system === $filters['system'];
+                                   })
+                                   ->keys()
+                                   ->toArray();
+                               if (!empty($mappedSystems)) {
+                                   $q->where(function ($query) use ($mappedSystems) {
+                                       foreach ($mappedSystems as $mappedSystem) {
+                                           $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                                       }
+                                   });
+                               }
+                           }
+                           $q->orderByDesc('date_utc')->limit(5);
                        }])
                        ->paginate(10)
                        ->appends($request->query());
@@ -62,7 +123,7 @@ class DashboardController extends Controller
             Log::debug('No users found. Start: ' . ($start ?? 'null') . ', End: ' . ($end ?? 'null') . ', System: ' . $selectedSystem);
         }
 
-        $systems = System::orderBy('name')->pluck('name')->toArray();
+        $systems = $this->filterService->getSystemList();
         Log::debug('Available systems: ', $systems);
 
         $stats = $this->statsService->generateStats($filters);
@@ -100,6 +161,8 @@ class DashboardController extends Controller
             'rangeLabel'         => $filters['rangeLabel'],
             'systemInput'        => $selectedSystem,
             'systems'            => $systems,
+            'selectedRange'      => $filters['range'],
+            'selectedSystem'     => $selectedSystem,
         ]);
     }
 

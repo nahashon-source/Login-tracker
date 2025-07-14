@@ -35,13 +35,18 @@ class DashboardStatsService
                 }
                 // Apply system filter
                 if (!empty($filters['system'])) {
-                    $mappedSystem = collect(config('systemmap'))
+                    $mappedSystems = collect(config('systemmap'))
                         ->filter(function ($system) use ($filters) {
                             return $system === $filters['system'];
                         })
-                        ->keys()->first();
-                    if ($mappedSystem) {
-                        $q->where('application', 'LIKE', "%$mappedSystem%");
+                        ->keys()
+                        ->toArray();
+                    if (!empty($mappedSystems)) {
+                        $q->where(function ($query) use ($mappedSystems) {
+                            foreach ($mappedSystems as $mappedSystem) {
+                                $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                            }
+                        });
                     }
                 }
             }])
@@ -54,13 +59,18 @@ class DashboardStatsService
                     $q->where('date_utc', '<=', $filters['endDate']);
                 }
                 if (!empty($filters['system'])) {
-                    $mappedSystem = collect(config('systemmap'))
+                    $mappedSystems = collect(config('systemmap'))
                         ->filter(function ($system) use ($filters) {
                             return $system === $filters['system'];
                         })
-                        ->keys()->first();
-                    if ($mappedSystem) {
-                        $q->where('application', 'LIKE', "%$mappedSystem%");
+                        ->keys()
+                        ->toArray();
+                    if (!empty($mappedSystems)) {
+                        $q->where(function ($query) use ($mappedSystems) {
+                            foreach ($mappedSystems as $mappedSystem) {
+                                $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                            }
+                        });
                     }
                 }
                 $q->orderByDesc('date_utc')->limit(5);
@@ -98,13 +108,18 @@ class DashboardStatsService
             }
             // Apply system filter to signin logs
             if (!empty($filters['system'])) {
-                $mappedSystem = collect(config('systemmap'))
+                $mappedSystems = collect(config('systemmap'))
                     ->filter(function ($system) use ($filters) {
                         return $system === $filters['system'];
-                    }
-                )->keys()->first();
-                if ($mappedSystem) {
-                    $q->where('application', 'LIKE', "%$mappedSystem%");
+                    })
+                    ->keys()
+                    ->toArray();
+                if (!empty($mappedSystems)) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
                 }
             }
         })->count();
@@ -115,14 +130,19 @@ class DashboardStatsService
         // For "not logged in" calculation, get users who have used the system but didn't login in the date range
         if ($system) {
             // Get users who have ever used this system
-            $mappedSystem = collect(config('systemmap'))
+            $mappedSystems = collect(config('systemmap'))
                 ->filter(function ($mappedSystem) use ($system) {
                     return $mappedSystem === $system;
                 })
-                ->keys()->first();
-            if ($mappedSystem) {
-                $usersInSystem = User::whereHas('signIns', function ($q) use ($mappedSystem) {
-                    $q->where('application', 'LIKE', "%$mappedSystem%");
+                ->keys()
+                ->toArray();
+            if (!empty($mappedSystems)) {
+                $usersInSystem = User::whereHas('signIns', function ($q) use ($mappedSystems) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
                 })->count();
                 $notLoggedInCount = max(0, $usersInSystem - $loggedInCount);
             } else {
