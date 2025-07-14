@@ -90,33 +90,6 @@
         </div>
     </div>
 
-    {{-- Assigned Applications --}}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Assigned Applications</h5>
-        </div>
-        <div class="card-body">
-            @if ($assignedSystems->isEmpty())
-                <div class="alert alert-info">No applications assigned to this user.</div>
-            @else
-                <div class="row">
-                    @foreach ($assignedSystems as $system)
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card h-100 border-primary">
-                                <div class="card-body">
-                                    <h6 class="card-title text-primary">{{ $system->name }}</h6>
-                                    <p class="card-text">
-                                        <span class="badge bg-primary">Assigned</span><br>
-                                        <small class="text-muted">System Access</small>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    </div>
 
 
     {{-- Sign In History Table --}}

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
-    protected $perPage = 10;
+    protected $perPage = 17;
 
     public function create()
     {
@@ -207,7 +207,7 @@ class UserController extends Controller
 
     public function show(Request $request, $id)
     {
-        $user = User::with('systems')->findOrFail($id);
+        $user = User::findOrFail($id);
         $range = $request->input('range', 'this_month');
         $system = $request->input('system'); // Don't default to a specific system
 
@@ -231,71 +231,143 @@ class UserController extends Controller
             ->limit(10)
             ->get();
 
-        // Get assigned systems from the application_user table
-        $assignedSystems = $user->systems;
-
-        return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications', 'assignedSystems'));
+        return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications'));
     }
 
     public function loggedInUsers(Request $request)
     {
-        [$start, $end] = $this->resolveDateRange($request);
+        // Use LoginFilterService for consistent filtering
+        $filterService = new \App\Services\LoginFilterService();
+        $filters = $filterService->parseFilters($request);
+        
         $search = $request->input('search');
-        $range = $request->input('range', 'this_month');
-        $system = $request->input('system', 'Windows Sign In'); // Default to a valid application
-
-        $query = User::whereHas('signIns', function ($q) use ($start, $end, $system) {
-            $q->whereBetween('date_utc', [$start, $end]);
-            if ($system) {
-                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+        
+        $query = User::whereHas('signIns', function ($q) use ($filters) {
+            $q->whereBetween('date_utc', [$filters['startDate'], $filters['endDate']]);
+            
+            // Apply system filter using system mapping
+            if (!empty($filters['system'])) {
+                $mappedSystems = collect(config('systemmap'))
+                    ->filter(function ($system) use ($filters) {
+                        return $system === $filters['system'];
+                    })
+                    ->keys()
+                    ->toArray();
+                if (!empty($mappedSystems)) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
+                }
             }
         });
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('displayName', 'like', "%{$search}%")
-                    ->orWhere('userPrincipalName', 'like', "%{$search}%")
-                    ->orWhere('mail1', 'like', "%{$search}%")
-                    ->orWhere('mail2', 'like', "%{$search}%");
+                    ->orWhere('userPrincipalName', 'like', "%{$search}%");
             });
         }
 
-        $users = $query->withCount(['signIns as login_count' => function ($q) use ($start, $end, $system) {
-            $q->whereBetween('date_utc', [$start, $end]);
-            if ($system) {
-                $q->where(DB::raw('LOWER(application)'), strtolower($system)); // Use 'application'
+        $users = $query->withCount(['signIns as login_count' => function ($q) use ($filters) {
+            $q->whereBetween('date_utc', [$filters['startDate'], $filters['endDate']]);
+            
+            // Apply system filter using system mapping
+            if (!empty($filters['system'])) {
+                $mappedSystems = collect(config('systemmap'))
+                    ->filter(function ($system) use ($filters) {
+                        return $system === $filters['system'];
+                    })
+                    ->keys()
+                    ->toArray();
+                if (!empty($mappedSystems)) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
+                }
             }
-        }])->paginate($this->perPage)->withQueryString();
+        }])
+        ->with(['signIns' => function ($q) use ($filters) {
+            $q->whereBetween('date_utc', [$filters['startDate'], $filters['endDate']])
+              ->orderByDesc('date_utc')
+              ->limit(5);
+        }])
+        ->orderBy('displayName')
+        ->paginate(17)->withQueryString();
+        
+        $systems = $filterService->getSystemList();
 
-        return view('users.logged-in', compact('users', 'range', 'search', 'system'));
+        return view('users.logged-in', compact('users', 'filters', 'search', 'systems'));
     }
 
     public function notLoggedInUsers(Request $request)
     {
-        [$start, $end] = $this->resolveDateRange($request);
+        // Use LoginFilterService for consistent filtering
+        $filterService = new \App\Services\LoginFilterService();
+        $filters = $filterService->parseFilters($request);
+        
         $search = $request->input('search');
-        $range = $request->input('range', 'this_month');
-        $system = $request->input('system', 'Windows Sign In'); // Default to a valid application
-
-        $query = User::whereDoesntHave('signIns', function ($q) use ($start, $end, $system) {
-            $q->whereBetween('date_utc', [$start, $end]);
-            if ($system) {
-                $q->where(DB::raw('LOWER(system)'), strtolower($system));
+        
+        // Get users who have used the system but haven't logged in during the date range
+        $query = User::query();
+        
+        // First, filter to users who have ever used the selected system
+        if (!empty($filters['system'])) {
+            $mappedSystems = collect(config('systemmap'))
+                ->filter(function ($system) use ($filters) {
+                    return $system === $filters['system'];
+                })
+                ->keys()
+                ->toArray();
+            if (!empty($mappedSystems)) {
+                $query->whereHas('signIns', function ($q) use ($mappedSystems) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
+                });
+            }
+        }
+        
+        // Then, exclude users who have logged in during the selected date range
+        $query->whereDoesntHave('signIns', function ($q) use ($filters) {
+            $q->whereBetween('date_utc', [$filters['startDate'], $filters['endDate']]);
+            
+            // Apply system filter using system mapping
+            if (!empty($filters['system'])) {
+                $mappedSystems = collect(config('systemmap'))
+                    ->filter(function ($system) use ($filters) {
+                        return $system === $filters['system'];
+                    })
+                    ->keys()
+                    ->toArray();
+                if (!empty($mappedSystems)) {
+                    $q->where(function ($query) use ($mappedSystems) {
+                        foreach ($mappedSystems as $mappedSystem) {
+                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
+                        }
+                    });
+                }
             }
         });
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('displayName', 'like', "%{$search}%")
-                    ->orWhere('userPrincipalName', 'like', "%{$search}%")
-                    ->orWhere('mail1', 'like', "%{$search}%")
-                    ->orWhere('mail2', 'like', "%{$search}%");
+                    ->orWhere('userPrincipalName', 'like', "%{$search}%");
             });
         }
 
-        $users = $query->paginate($this->perPage)->withQueryString();
+        $users = $query->orderBy('displayName')
+                      ->paginate(17)->withQueryString();
+        
+        $systems = $filterService->getSystemList();
 
-        return view('users.not-logged-in', compact('users', 'range', 'search', 'system'));
+        return view('users.not-logged-in', compact('users', 'filters', 'search', 'systems'));
     }
 
     protected function resolveDateRange($input = null)

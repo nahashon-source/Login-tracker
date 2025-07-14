@@ -74,21 +74,27 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card bg-success text-white shadow">
-                <div class="card-body">
-                    <h5 class="card-title">Logged In Users</h5>
-                    <p class="display-5" id="logged-in-count">{{ $loggedInCount }}</p>
+            <a href="{{ route('users.logged-in') }}" class="text-decoration-none" id="logged-in-link">
+                <div class="card bg-success text-white shadow card-hover">
+                    <div class="card-body">
+                        <h5 class="card-title">Logged In Users</h5>
+                        <p class="display-5" id="logged-in-count">{{ $loggedInCount }}</p>
+                        <small class="opacity-75">Click to view details</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="col-md-4">
-            <div class="card bg-danger text-white shadow">
-                <div class="card-body">
-                    <h5 class="card-title">Not Logged In Users</h5>
-                    <p class="display-5" id="not-logged-in-count">{{ $notLoggedInCount }}</p>
+            <a href="{{ route('users.not-logged-in') }}" class="text-decoration-none" id="not-logged-in-link">
+                <div class="card bg-danger text-white shadow card-hover">
+                    <div class="card-body">
+                        <h5 class="card-title">Not Logged In Users</h5>
+                        <p class="display-5" id="not-logged-in-count">{{ $notLoggedInCount }}</p>
+                        <small class="opacity-75">Click to view details</small>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -139,6 +145,22 @@
         @endif
     </div>
 </div>
+
+<style>
+.card-hover {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.card-hover:active {
+    transform: translateY(-2px);
+}
+</style>
 
 <script>
     $(document).ready(function() {
@@ -197,6 +219,11 @@
                     $('#total-users').text(response.totalUsers || 0);
                     $('#logged-in-count').text(response.loggedInCount || 0);
                     $('#not-logged-in-count').text(response.notLoggedInCount || 0);
+                    
+                    // Update card links with current filters
+                    const queryParams = $.param({ range: range, system: system, search: search });
+                    $('#logged-in-link').attr('href', '{{ route("users.logged-in") }}?' + queryParams);
+                    $('#not-logged-in-link').attr('href', '{{ route("users.not-logged-in") }}?' + queryParams);
 
                     // Update filter summary
                     $('#range-label').text(rangeLabel).toggle(!!rangeLabel);
