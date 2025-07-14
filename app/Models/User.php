@@ -66,6 +66,7 @@ class User extends Authenticatable
         'jobTitle',
         'department',
         'accountEnabled',
+        'logged_in',
         'usageLocation',
 
         // Address and contact info

@@ -31,7 +31,6 @@ Route::get('/imports', function () {
 // CSV import endpoints
 Route::post('/import/users', [ImportController::class, 'importUsers'])->name('import.users');
 Route::post('/import/sign-ins', [ImportController::class, 'importSignIns'])->name('import.sign_ins');
-Route::post('/import/applications', [ImportController::class, 'importApplications'])->name('import.applications');
 
 // User management resource routes (show, create, edit, delete, etc.)
 Route::resource('users', UserController::class);

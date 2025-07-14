@@ -100,10 +100,13 @@ class ImportController extends Controller
                 Excel::import(new SigninLogsImport, $file);
             });
 
-            Log::channel('import')->info('✅ Sign-ins imported successfully.');
+            // Update user login status based on the newly imported sign-in data
+            \Artisan::call('users:update-login-status');
+            
+            Log::channel('import')->info('✅ Sign-ins imported successfully and user login status updated.');
 
             $lockService->releaseLock();
-            return redirect()->route('dashboard')->with('success', '✅ Sign-ins imported successfully!');
+            return redirect()->route('dashboard')->with('success', '✅ Sign-ins imported successfully and user login status updated!');
         } catch (\Throwable $e) {
             Log::channel('import')->error('❌ Sign-ins import failed.', [
                 'error' => $e->getMessage(),
@@ -119,31 +122,4 @@ class ImportController extends Controller
         }
     }
 
-    public function importApplications(Request $request)
-    {
-        $request->validate([
-            'import_file' => 'required|file|mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel',
-        ], [
-            'import_file.required' => 'Please select a CSV file to upload.',
-            'import_file.mimetypes' => 'The file must be a CSV or TXT file.',
-        ]);
-
-        $file = $request->file('import_file');
-        
-        $csv = Reader::createFromPath($file->getRealPath(), 'r');
-        $csv->setHeaderOffset(0); // skip the header row
-
-        DB::transaction(function () use ($csv) {
-            foreach ($csv as $record) {
-                $user = User::where('userPrincipalName', $record['userPrincipalName'])->first();
-                $system = System::where('name', $record['system'])->first();
-
-                if ($user && $system) {
-                    $user->systems()->syncWithoutDetaching([$system->id]);
-                }
-            }
-        });
-
-        return redirect()->route('dashboard')->with('success', '✅ Applications imported successfully!');
-    }
 }

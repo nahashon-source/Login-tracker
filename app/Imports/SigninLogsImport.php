@@ -78,9 +78,19 @@ class SigninLogsImport implements ToModel, WithHeadingRow
         // Default to 'Unknown' if no mapping found
         $system = $system ?? 'Unknown';
         
-        // Auto-create system if it doesn't exist
-        if ($system !== 'Unknown') {
-            System::firstOrCreate(['name' => $system]);
+        // Auto-create system if it doesn't exist and associate with user
+        if ($system !== 'Unknown' && $userId) {
+            $systemModel = System::firstOrCreate(['name' => $system]);
+            
+            // Get the user and associate them with this system
+            $user = User::find($userId);
+            if ($user && $systemModel) {
+                // Check if user is already associated with this system
+                if (!$user->systems()->where('application_id', $systemModel->id)->exists()) {
+                    $user->systems()->attach($systemModel->id);
+                    Log::info("Associated user {$userPrincipalName} with system {$system}");
+                }
+            }
         }
 
         return new SigninLog([
@@ -103,6 +113,7 @@ class SigninLogsImport implements ToModel, WithHeadingRow
             'application'                       => $application,
             'system'                            => $system,
             'application_id'                    => $row['application id'] ?? null,
+            'app_owner_tenant_id'               => $row['app owner tenant id'] ?? null,
             'resource'                          => $row['resource'] ?? null,
             'resource_id'                       => $row['resource id'] ?? null,
             'resource_tenant_id'                => $row['resource tenant id'] ?? null,

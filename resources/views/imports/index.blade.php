@@ -12,6 +12,7 @@
 
     {{-- Page Title --}}
     <h1 class="mb-4">Import Data</h1>
+    <p class="lead">Import users and sign-in logs. User-system associations and login status are automatically updated when importing sign-in data.</p>
 
     {{-- Back to Dashboard Button --}}
     <div class="mb-4">
@@ -72,28 +73,6 @@
         </div>
     </div>
 
-    {{-- Applications Import --}}
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <h3>Import User Applications</h3>
-            <form action="{{ route('import.applications') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="mb-3">
-                    <label for="appFile" class="form-label">Upload Applications CSV</label>
-                    <input type="file" class="form-control" id="appFile" name="import_file" accept=".csv" required>
-                    <div class="form-text">Expected format: userPrincipalName,system</div>
-                </div>
-                <button type="submit" class="btn btn-success">Import Applications</button>
-            </form>
-        </div>
-        <div class="col-md-6">
-            <h4>CSV Format Example:</h4>
-            <pre class="bg-light p-3 rounded">userPrincipalName,system
-user1@example.com,Odoo
-user2@example.com,SCM
-user3@example.com,FIT ERP</pre>
-        </div>
-    </div>
 
 
 </div>
