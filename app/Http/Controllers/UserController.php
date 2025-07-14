@@ -212,18 +212,23 @@ class UserController extends Controller
 
         [$start, $end] = $this->resolveDateRange($range);
 
-        $signInsQuery = $user->signIns()
-            ->whereBetween('date_utc', [$start, $end]);
-
-        if ($system) {
-            $signInsQuery->where(DB::raw('LOWER(system)'), strtolower($system));    
-            }
-
-        $signIns = $signInsQuery->orderBy('date_utc', 'desc')
+        $signIns = $user->signIns()
+            ->whereBetween('date_utc', [$start, $end])
+            ->orderBy('date_utc', 'desc')
             ->paginate($this->perPage)
             ->withQueryString();
 
-        return view('user-details', compact('user', 'signIns', 'start', 'end', 'system', 'range'));
+        // Get recent applications used by this user
+        $recentApplications = $user->signIns()
+            ->whereBetween('date_utc', [$start, $end])
+            ->select('application', 'system', DB::raw('COUNT(*) as usage_count'), DB::raw('MAX(date_utc) as last_used'))
+            ->whereNotNull('application')
+            ->groupBy('application', 'system')
+            ->orderBy('last_used', 'desc')
+            ->limit(10)
+            ->get();
+
+        return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications'));
     }
 
     public function loggedInUsers(Request $request)

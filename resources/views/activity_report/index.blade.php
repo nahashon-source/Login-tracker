@@ -7,12 +7,17 @@
 
     
 
-    <!-- Date Filter Form -->
+    <!-- Date Filter and Search Form -->
     <form method="GET" action="{{ route('activity.report') }}" class="mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label for="date" class="form-label">Filter by specific date:</label>
                 <input type="date" name="date" id="date" class="form-control" value="{{ request('date') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search users:</label>
+                <input type="text" name="search" id="search" class="form-control" 
+                       placeholder="Search Name, UPN, or Email" value="{{ request('search') }}">
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-primary">Filter</button>
@@ -20,6 +25,13 @@
             </div>
         </div>
     </form>
+
+    <!-- Active Search Term Display -->
+    @if(request('search'))
+        <div class="mb-2 text-muted">
+            Showing results for: <strong>"{{ request('search') }}"</strong>
+        </div>
+    @endif
 
     <p>
         <strong>Showing activity from:</strong> {{ $startDate->toDateString() }} to {{ $endDate->toDateString() }}

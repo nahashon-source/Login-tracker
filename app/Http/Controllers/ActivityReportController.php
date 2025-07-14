@@ -33,8 +33,8 @@ class ActivityReportController extends Controller
             ? Carbon::parse($request->input('date'))->endOfDay()
             : now();
 
-        // Query for user activity within the date range
-        $activity = User::select([
+        // Start building the query for user activity within the date range
+        $query = User::select([
                 'users.id',
                 'users.displayName',
                 'users.userPrincipalName',
@@ -48,7 +48,20 @@ class ActivityReportController extends Controller
             ->leftJoin('signin_logs', function ($join) use ($startDate, $endDate) {
                 $join->on('signin_logs.user_id', '=', 'users.id')
                      ->whereBetween('signin_logs.date_utc', [$startDate, $endDate]);
-            })
+            });
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('users.displayName', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('users.userPrincipalName', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('users.mail', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Complete the query
+        $activity = $query
             // Group by required user fields for aggregation
             ->groupBy('users.id', 'users.displayName', 'users.userPrincipalName')
             // Order by most active users first
