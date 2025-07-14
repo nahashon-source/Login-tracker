@@ -63,7 +63,7 @@ class UserController extends Controller
     {
         [$start, $end] = $this->resolveDateRange($request);
         $rangeInput = $request->input('range', 'this_month');
-        $system = $request->input('system', 'Odoo');
+        $system = $request->input('system');
         $search = $request->input('search');
     
         if ($request->ajax()) {
@@ -87,11 +87,12 @@ class UserController extends Controller
             }
     
             if ($system) {
-                $query->whereHas('signIns', function ($q) use ($start, $end, $system) {
-                    $q->whereBetween('date_utc', [$start, $end])
-                        ->where(DB::raw('LOWER(system)'), strtolower($system));
+                // Filter by assigned systems using the pivot table
+                $query->whereHas('systems', function ($q) use ($system) {
+                    $q->where('name', $system);
                 });
             } else {
+                // Only filter by date range for sign-ins when no system is selected
                 $query->whereHas('signIns', function ($q) use ($start, $end) {
                     $q->whereBetween('date_utc', [$start, $end]);
                 });
@@ -124,9 +125,9 @@ class UserController extends Controller
             $loggedInCount = $loggedInEmails->isEmpty() ? 0 : User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
             $notLoggedInCount = $totalUsers - $loggedInCount;
     
-            // Get all distinct systems, sorted alphabetically
-            $systems = SigninLog::select('system')->distinct()->pluck('system')->sort()->values()->toArray();
-            Log::info('Systems for Dropdown', ['systems' => $systems]);
+        // Get all distinct systems from the systems table (for application filtering)
+        $systems = \App\Models\System::orderBy('name')->pluck('name')->toArray();
+        Log::info('Systems for Dropdown', ['systems' => $systems]);
     
             Log::debug('Executed Queries', DB::getQueryLog());
             Log::info('AJAX Response Data', [
@@ -158,11 +159,12 @@ class UserController extends Controller
         }
     
         if ($system) {
-            $query->whereHas('signIns', function ($q) use ($start, $end, $system) {
-                $q->whereBetween('date_utc', [$start, $end])
-                    ->where(DB::raw('LOWER(system)'), strtolower($system));
+            // Filter by assigned systems using the pivot table
+            $query->whereHas('systems', function ($q) use ($system) {
+                $q->where('name', $system);
             });
         } else {
+            // Only filter by date range for sign-ins when no system is selected
             $query->whereHas('signIns', function ($q) use ($start, $end) {
                 $q->whereBetween('date_utc', [$start, $end]);
             });
@@ -193,8 +195,8 @@ class UserController extends Controller
         $loggedInCount = $loggedInEmails->isEmpty() ? 0 : User::whereIn(DB::raw('LOWER(userPrincipalName)'), $loggedInEmails)->count();
         $notLoggedInCount = $totalUsers - $loggedInCount;
     
-        // Get all distinct systems, sorted alphabetically
-        $systems = SigninLog::select('system')->distinct()->pluck('system')->sort()->values()->toArray();
+        // Get all distinct systems from the systems table (for application filtering)
+        $systems = \App\Models\System::orderBy('name')->pluck('name')->toArray();
         Log::info('Systems for Dropdown (Non-AJAX)', ['systems' => $systems]);
     
         $rangeLabel = $this->getRangeLabel($rangeInput);
@@ -205,7 +207,7 @@ class UserController extends Controller
 
     public function show(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $user = User::with('systems')->findOrFail($id);
         $range = $request->input('range', 'this_month');
         $system = $request->input('system'); // Don't default to a specific system
 
@@ -229,18 +231,10 @@ class UserController extends Controller
             ->limit(10)
             ->get();
 
-        // Get systems used by this user (using actual system field)
-        $systemsUsed = $user->signIns()
-            ->whereBetween('date_utc', [$start, $end])
-            ->select('system',
-                    DB::raw('COUNT(*) as usage_count'), 
-                    DB::raw('MAX(date_utc) as last_used'))
-            ->whereNotNull('system')
-            ->groupBy('system')
-            ->orderBy('last_used', 'desc')
-            ->get();
+        // Get assigned systems from the application_user table
+        $assignedSystems = $user->systems;
 
-        return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications', 'systemsUsed'));
+        return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications', 'assignedSystems'));
     }
 
     public function loggedInUsers(Request $request)

@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use App\Services\ImportLockService;
+use App\Models\User;
+use App\Models\System;
+use League\Csv\Reader;
 
 class ImportController extends Controller
 {
@@ -116,4 +119,31 @@ class ImportController extends Controller
         }
     }
 
+    public function importApplications(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|file|mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel',
+        ], [
+            'import_file.required' => 'Please select a CSV file to upload.',
+            'import_file.mimetypes' => 'The file must be a CSV or TXT file.',
+        ]);
+
+        $file = $request->file('import_file');
+        
+        $csv = Reader::createFromPath($file->getRealPath(), 'r');
+        $csv->setHeaderOffset(0); // skip the header row
+
+        DB::transaction(function () use ($csv) {
+            foreach ($csv as $record) {
+                $user = User::where('userPrincipalName', $record['userPrincipalName'])->first();
+                $system = System::where('name', $record['system'])->first();
+
+                if ($user && $system) {
+                    $user->systems()->syncWithoutDetaching([$system->id]);
+                }
+            }
+        });
+
+        return redirect()->route('dashboard')->with('success', '✅ Applications imported successfully!');
+    }
 }

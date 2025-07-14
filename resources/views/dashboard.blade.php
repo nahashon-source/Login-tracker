@@ -29,7 +29,7 @@
             <label for="system" class="form-label">System:</label>
             <select name="system" id="system" class="form-select">
                 @php
-                    $selectedSystem = request('system', 'SCM');
+                    $selectedSystem = request('system');
                 @endphp
                 <option value="">All Systems</option>
                 @foreach ($systems ?? [] as $sys)

@@ -35,19 +35,16 @@ class DashboardController extends Controller
             });
         }
         
-        // Filter by system - show all users who have ever used the selected system
+        // Filter by system - show users who are assigned to the selected system
         $selectedSystem = $request->input('system');
         if ($selectedSystem) {
-            $mappedSystem = collect(config('systemmap'))
-                ->filter(function ($system) use ($selectedSystem) {
-                    return $system === $selectedSystem;
-                })
-                ->keys()->first();
-            if ($mappedSystem) {
-                $query->whereHas('signIns', function ($query) use ($mappedSystem) {
-                    $query->where('application', 'LIKE', "%$mappedSystem%");
-                });
-            }
+            $query->whereHas('systems', function ($query) use ($selectedSystem) {
+                $query->where('name', $selectedSystem);
+            });
+        } else {
+            // Only filter by activity when no system is selected
+            // This ensures we show all users with recent activity when no system filter is applied
+            $query->whereHas('signIns');
         }
 
 
