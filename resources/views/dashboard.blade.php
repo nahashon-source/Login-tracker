@@ -29,9 +29,8 @@
             <label for="system" class="form-label">System:</label>
             <select name="system" id="system" class="form-select">
                 @php
-                    $selectedSystem = request('system');
+                    $selectedSystem = request('system', 'SCM');
                 @endphp
-                <option value="">All Systems</option>
                 @foreach ($systems ?? [] as $sys)
                     <option value="{{ $sys }}" {{ $selectedSystem == $sys ? 'selected' : '' }}>{{ $sys }}</option>
                 @endforeach
@@ -166,7 +165,7 @@
 
         function updateDashboard() {
             var range = $('#range').val();
-            var system = $('#system').val();
+            var system = $('#system').val() || 'SCM';
             var search = $('#search').val();
             var rangeLabel = {
                 'this_month': 'This Month',

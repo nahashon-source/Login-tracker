@@ -37,7 +37,7 @@ class DashboardController extends Controller
         }
         
         // Filter by system - show users who have used the selected system
-        $selectedSystem = $request->input('system');
+        $selectedSystem = $request->input('system', 'SCM');
         if ($selectedSystem) {
             // Get all mapped system names from config
             $mappedSystems = collect(config('systemmap'))

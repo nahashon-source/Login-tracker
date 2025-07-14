@@ -97,12 +97,12 @@ class LoginFilterService
         return [
             'SCM',
             'Odoo',
+            'OPS',
             'D365 Live',
             'Fit Express',
             'FIT ERP',
             'Fit Express UAT',
             'FITerp UAT',
-            'OPS',
             'OPS UAT',
         ];
     }
