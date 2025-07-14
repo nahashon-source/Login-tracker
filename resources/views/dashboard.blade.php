@@ -29,7 +29,7 @@
             <label for="system" class="form-label">System:</label>
             <select name="system" id="system" class="form-select">
                 @php
-                    $selectedSystem = request('system', 'Odoo');
+                    $selectedSystem = request('system', 'SCM');
                 @endphp
                 <option value="">All Systems</option>
                 @foreach ($systems ?? [] as $sys)
@@ -161,18 +161,26 @@
 
 <script>
     $(document).ready(function() {
-        // Trigger update on Apply button click or dropdown change
-        $('#apply, #system, #range').on('click change', function(e) {
-            e.preventDefault(); // Prevent default form submission for Apply button
+        // Trigger update on Apply button click
+        $('#apply').on('click', function(e) {
+            e.preventDefault();
             updateDashboard();
         });
+        
+        // Trigger update on dropdown change
+    // Trigger update on page load
+    updateDashboard();
 
-        // Trigger update on search input (with debounce)
-        let searchTimeout;
-        $('#search').on('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(updateDashboard, 500); // 500ms debounce
-        });
+    $('#system, #range').on('change', function() {
+        updateDashboard();
+    });
+
+    // Trigger update on search input (with debounce)
+    let searchTimeout;
+    $('#search').on('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(updateDashboard, 500); // 500ms debounce
+    });
 
         function updateDashboard() {
             var range = $('#range').val();
@@ -190,6 +198,10 @@
             $.ajax({
                 url: '{{ route("dashboard") }}',
                 method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 data: { range: range, system: system, search: search },
                 success: function(response) {
                     console.log('AJAX Response Users:', response.users);
@@ -209,7 +221,7 @@
                     // Update user table
                     var tbody = $('#user-table-body');
                     tbody.empty();
-if (response.users  response.users.length > 0) {
+if (response.users && response.users.length > 0) {
                         $('#user-table').html(`
                             <table class="table table-striped table-hover align-middle">
                                 <thead class="table-dark">
@@ -235,35 +247,27 @@ if (response.users  response.users.length > 0) {
                                 ? new Date(user.signIns[0].date_utc).toLocaleString()
                                 : 'N/A';
 
-                            $('#user-table-body').append(`
-                                <tr class="${rowClass}">
-                                    <td>${user.displayName || 'Unknown'}</td>
-                                    <td>${user.userPrincipalName || 'Not Set'}</td>
-                                    <td>${missedDays}</td>
-                                    <td>
-                                        <span class="badge bg-secondary">Count: ${user.sign_ins_count || 0}</span><br>
-                                        <small>Last: ${lastLogin}</small>
-                                    </td>
-                                    <td>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                                Actions
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="{{ route('users.show', ':id') }}".replace(':id', user.id)">View</a></li>
-                                                <li>
-                                                    <form action="{{ route('users.destroy', ':id') }}".replace(':id', user.id)" method="POST"
-                                                          onsubmit="return confirm('Delete this user?');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="dropdown-item text-danger">Delete</button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `);
+                            var userRow = '<tr class="' + rowClass + '">' +
+                                '<td>' + (user.displayName || 'Unknown') + '</td>' +
+                                '<td>' + (user.userPrincipalName || 'Not Set') + '</td>' +
+                                '<td>' + missedDays + '</td>' +
+                                '<td>' +
+                                    '<span class="badge bg-secondary">Count: ' + (user.sign_ins_count || 0) + '</span><br>' +
+                                    '<small>Last: ' + lastLogin + '</small>' +
+                                '</td>' +
+                                '<td>' +
+                                    '<div class="dropdown">' +
+                                        '<button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">' +
+                                            'Actions' +
+                                        '</button>' +
+                                        '<ul class="dropdown-menu">' +
+                                            '<li><a class="dropdown-item" href="/users/' + user.id + '">View</a></li>' +
+                                            '<li><button class="dropdown-item text-danger" onclick="deleteUser(\'' + user.id + '\')">Delete</button></li>' +
+                                        '</ul>' +
+                                    '</div>' +
+                                '</td>' +
+                            '</tr>';
+                            $('#user-table-body').append(userRow);
                         });
                         // Reinitialize Bootstrap dropdowns
                         $('.dropdown-toggle').dropdown();
@@ -278,14 +282,13 @@ if (response.users  response.users.length > 0) {
                     $('#loading').hide();
                     $('#total-users').text('0');
                     $('#logged-in-count').text('0');
-                    '#not-logged-in-count').text('0');
+                    $('#not-logged-in-count').text('0');
                     $('#user-table').html('<div class="alert alert-info">No users found for the selected filters.</div>');
                 }
             });
         }
 
-        // Initial load
-        updateDashboard();
+        // Initial load already called above
     });
 </script>
 @endsection

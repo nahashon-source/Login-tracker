@@ -18,12 +18,21 @@ class LoginFilterService
         $system = $request->input('system', 'SCM');
         $search = $request->input('search', null);
 
-        $endDate = Carbon::create(2025, 7, 31, 23, 59, 59);
+        // Calculate date ranges based on selection
+        $now = Carbon::now();
+        $endDate = $now->clone()->endOfMonth();
         $startDate = match ($range) {
-            'last_month'     => Carbon::create(2025, 6, 1, 0, 0, 0),
-            'last_3_months'  => Carbon::create(2025, 5, 1, 0, 0, 0),
-            default          => Carbon::create(2025, 7, 1, 0, 0, 0),
+            'last_month'     => $now->clone()->subMonth()->startOfMonth(),
+            'last_3_months'  => $now->clone()->subMonths(3)->startOfMonth(),
+            default          => $now->clone()->startOfMonth(),
         };
+
+        // For last_month, end date should be end of last month
+        if ($range === 'last_month') {
+            $endDate = $now->clone()->subMonth()->endOfMonth();
+        } elseif ($range === 'last_3_months') {
+            $endDate = $now->clone()->endOfMonth();
+        }
 
         $rangeLabel = match ($range) {
             'last_month'     => 'Last Month',
@@ -60,9 +69,16 @@ class LoginFilterService
             $query->where('date_utc', '<=', $filters['endDate']);
         }
 
-        // Apply system filter (⚠️ adapt field name to your DB: 'application' or 'resource')
+        // Apply system filter using system mapping
         if (!empty($filters['system'])) {
-            $query->where('application', $filters['system']);  // <- adjust this if your DB uses 'resource'
+            $mappedSystem = collect(config('systemmap'))
+                ->filter(function ($system) use ($filters) {
+                    return $system === $filters['system'];
+                })
+                ->keys()->first();
+            if ($mappedSystem) {
+                $query->where('application', 'LIKE', "%$mappedSystem%");
+            }
         }
 
         return $query;

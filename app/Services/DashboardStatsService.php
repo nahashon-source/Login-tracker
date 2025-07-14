@@ -22,16 +22,48 @@ class DashboardStatsService
         ['startDate' => $startDate, 'endDate' => $endDate, 'system' => $system, 'search' => $search] = $filters;
         $totalDays = (int) ($startDate->diffInDays($endDate) + 1);
 
-        // 🔹 Users with filters
+        // 🔹 Users with filters - show all users who have used the system, with date-filtered login counts
         $usersQuery = User::query()
             ->select('id', 'displayName', 'userPrincipalName')
             ->withCount(['signIns as sign_ins_count' => function ($q) use ($filters) {
-                $this->filterService->applyDateAndSystemFilters($q, $filters);
+                // Apply date filters to count only logins in the selected period
+                if (!empty($filters['startDate'])) {
+                    $q->where('date_utc', '>=', $filters['startDate']);
+                }
+                if (!empty($filters['endDate'])) {
+                    $q->where('date_utc', '<=', $filters['endDate']);
+                }
+                // Apply system filter
+                if (!empty($filters['system'])) {
+                    $mappedSystem = collect(config('systemmap'))
+                        ->filter(function ($system) use ($filters) {
+                            return $system === $filters['system'];
+                        })
+                        ->keys()->first();
+                    if ($mappedSystem) {
+                        $q->where('application', 'LIKE', "%$mappedSystem%");
+                    }
+                }
             }])
             ->with(['signIns' => function ($q) use ($filters) {
-                $this->filterService->applyDateAndSystemFilters($q, $filters)
-                     ->orderByDesc('date_utc')
-                     ->limit(5);
+                // Show recent logins filtered by date and system
+                if (!empty($filters['startDate'])) {
+                    $q->where('date_utc', '>=', $filters['startDate']);
+                }
+                if (!empty($filters['endDate'])) {
+                    $q->where('date_utc', '<=', $filters['endDate']);
+                }
+                if (!empty($filters['system'])) {
+                    $mappedSystem = collect(config('systemmap'))
+                        ->filter(function ($system) use ($filters) {
+                            return $system === $filters['system'];
+                        })
+                        ->keys()->first();
+                    if ($mappedSystem) {
+                        $q->where('application', 'LIKE', "%$mappedSystem%");
+                    }
+                }
+                $q->orderByDesc('date_utc')->limit(5);
             }]);
 
         if ($search) {
@@ -56,36 +88,50 @@ class DashboardStatsService
         // 🔹 Logged in / not logged in count
         $loggedInQuery = User::query();
         
-        // If system filter is applied, filter by users assigned to that system
-        if ($system) {
-            $loggedInQuery->whereHas('systems', function ($q) use ($system) {
-                $q->where('name', $system);
-            });
-        }
-        
         $loggedInCount = $loggedInQuery->whereHas('signIns', function ($q) use ($filters) {
-            // Only apply date filters, not system filters for sign-ins
+            // Apply date filters
             if (!empty($filters['startDate'])) {
                 $q->where('date_utc', '>=', $filters['startDate']);
             }
             if (!empty($filters['endDate'])) {
                 $q->where('date_utc', '<=', $filters['endDate']);
             }
+            // Apply system filter to signin logs
+            if (!empty($filters['system'])) {
+                $mappedSystem = collect(config('systemmap'))
+                    ->filter(function ($system) use ($filters) {
+                        return $system === $filters['system'];
+                    }
+                )->keys()->first();
+                if ($mappedSystem) {
+                    $q->where('application', 'LIKE', "%$mappedSystem%");
+                }
+            }
         })->count();
 
         // Total users should always be the total count in the database
         $totalUsers = User::count();
         
-        // But for "not logged in" calculation, we need to consider the system filter
-        $totalUsersInSystem = User::query();
+        // For "not logged in" calculation, get users who have used the system but didn't login in the date range
         if ($system) {
-            $totalUsersInSystem->whereHas('systems', function ($q) use ($system) {
-                $q->where('name', $system);
-            });
+            // Get users who have ever used this system
+            $mappedSystem = collect(config('systemmap'))
+                ->filter(function ($mappedSystem) use ($system) {
+                    return $mappedSystem === $system;
+                })
+                ->keys()->first();
+            if ($mappedSystem) {
+                $usersInSystem = User::whereHas('signIns', function ($q) use ($mappedSystem) {
+                    $q->where('application', 'LIKE', "%$mappedSystem%");
+                })->count();
+                $notLoggedInCount = max(0, $usersInSystem - $loggedInCount);
+            } else {
+                $notLoggedInCount = $totalUsers - $loggedInCount;
+            }
+        } else {
+            // If no system filter, use all users
+            $notLoggedInCount = $totalUsers - $loggedInCount;
         }
-        $totalUsersInSystemCount = $totalUsersInSystem->count();
-        
-        $notLoggedInCount = $totalUsersInSystemCount - $loggedInCount;
 
         // 🔹 All sign-ins for listing
         $signIns = DB::table('signin_logs')

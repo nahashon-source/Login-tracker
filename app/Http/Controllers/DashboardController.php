@@ -24,51 +24,28 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-$filters = $this->filterService->parseFilters($request);
+        $filters = $this->filterService->parseFilters($request);
         
         $query = User::query();
 
         if ($searchTerm = $request->input('search')) {
-            $query->where('displayName', 'like', "%{$searchTerm}%")
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('displayName', 'like', "%{$searchTerm}%")
                   ->orWhere('userPrincipalName', 'like', "%{$searchTerm}%");
-        }
-        
-        // Filter by selected system
-        $selectedSystem = $request->input('system');
-        if ($selectedSystem) {
-            $query->whereHas('systems', function ($query) use ($selectedSystem) {
-                $query->where('name', $selectedSystem);
             });
         }
-
-        $start = null;
-        $end = null;
-        if ($range = $request->input('range')) {
-            switch ($range) {
-                case 'this_month':
-                    $start = Carbon::create(2025, 7, 1, 0, 0, 0);
-                    $end = Carbon::create(2025, 7, 31, 23, 59, 59);
-                    break;
-                case 'last_month':
-                    $start = Carbon::create(2025, 6, 1, 0, 0, 0);
-                    $end = Carbon::create(2025, 6, 30, 23, 59, 59);
-                    break;
-                case 'last_3_months':
-                    $start = Carbon::create(2025, 5, 1, 0, 0, 0);
-                    $end = Carbon::create(2025, 7, 31, 23, 59, 59);
-                    break;
-                case 'custom':
-                    $startDate = $request->input('start_date');
-                    $endDate = $request->input('end_date');
-                    if ($startDate && $endDate) {
-                        $start = Carbon::parse($startDate)->startOfDay();
-                        $end = Carbon::parse($endDate)->endOfDay();
-                    }
-                    break;
-            }
-            if ($start && $end) {
-                $query->whereHas('signIns', function ($query) use ($start, $end) {
-                    $query->whereBetween('date_utc', [$start, $end]);
+        
+        // Filter by system - show all users who have ever used the selected system
+        $selectedSystem = $request->input('system');
+        if ($selectedSystem) {
+            $mappedSystem = collect(config('systemmap'))
+                ->filter(function ($system) use ($selectedSystem) {
+                    return $system === $selectedSystem;
+                })
+                ->keys()->first();
+            if ($mappedSystem) {
+                $query->whereHas('signIns', function ($query) use ($mappedSystem) {
+                    $query->where('application', 'LIKE', "%$mappedSystem%");
                 });
             }
         }
@@ -87,6 +64,7 @@ $filters = $this->filterService->parseFilters($request);
         Log::debug('Available systems: ', $systems);
 
         $stats = $this->statsService->generateStats($filters);
+
 
         // If it's an AJAX request, return JSON
         if ($request->ajax()) {
