@@ -71,20 +71,20 @@
                 <div class="alert alert-info">No recent application usage found.</div>
             @else
                 <div class="row">
-                    @foreach ($recentApplications as $app)
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ $app->application ?? 'Unknown App' }}</h6>
-                                    <p class="card-text">
-                                        <small class="text-muted">Systems: {{ $app->systems ?? 'N/A' }}</small><br>
-                                        <span class="badge bg-primary">{{ $app->usage_count }} logins</span><br>
-                                        <small class="text-muted">Last used: {{ \Carbon\Carbon::parse($app->last_used)->format('M j, Y g:i A') }}</small>
-                                    </p>
-                                </div>
+                @foreach ($recentApplications as $app)
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title fs-5">{{ $app->application ?? 'Unknown App' }}</h5>
+                                <p class="card-text fs-6">
+                                    <span class="text-muted">Systems: {{ $app->systems ?? 'N/A' }}</span><br>
+                                    <span class="badge bg-primary fs-6">{{ $app->usage_count }} logins</span><br>
+                                    <span class="text-muted">Last used: {{ \Carbon\Carbon::parse($app->last_used)->format('M j, Y g:i A') }}</span>
+                                </p>
                             </div>
                         </div>
-                    @endforeach
+                    </div>
+                @endforeach
                 </div>
             @endif
         </div>
@@ -93,7 +93,22 @@
 
 
     {{-- Sign In History Table --}}
-    <h4 class="mb-3">Sign In History (Last 30 Days)</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Sign In History (Last 30 Days)</h4>
+        <div class="d-flex gap-3">
+            {{-- Search Field --}}
+            <div class="input-group" style="width: 300px;">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" id="applicationSearch" placeholder="Search applications...">
+            </div>
+            {{-- Calendar --}}
+            <div class="input-group" style="width: 250px;">
+                <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                <input type="date" class="form-control" id="dateFilter">
+                <button class="btn btn-outline-secondary" type="button" id="clearDate" title="Clear date filter">Clear</button>
+            </div>
+        </div>
+    </div>
 
     @if ($signIns->isEmpty())
         <div class="alert alert-info">No login history available.</div>
@@ -108,7 +123,7 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="signInTableBody">
                 @foreach ($signIns as $signIn)
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($signIn->date_utc)->format('D, M j, Y g:i A') }}</td>
@@ -142,4 +157,50 @@
     </div>
 
 </div>
+
+<script>
+    // Search functionality for applications
+    document.getElementById('applicationSearch').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const tableRows = document.querySelectorAll('#signInTableBody tr');
+        
+        tableRows.forEach(row => {
+            const applicationCell = row.cells[2].textContent.toLowerCase();
+            if (searchTerm === '' || applicationCell.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+    
+    // Date filter functionality
+    document.getElementById('dateFilter').addEventListener('change', function() {
+        if (this.value) {
+            const selectedDate = new Date(this.value);
+            const tableRows = document.querySelectorAll('#signInTableBody tr');
+            
+            tableRows.forEach(row => {
+                const dateCell = row.cells[0].textContent;
+                const rowDate = new Date(dateCell);
+                
+                if (rowDate.toDateString() === selectedDate.toDateString()) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+    
+    // Clear date filter
+    document.getElementById('clearDate').addEventListener('click', function() {
+        document.getElementById('dateFilter').value = '';
+        const tableRows = document.querySelectorAll('#signInTableBody tr');
+        tableRows.forEach(row => {
+            row.style.display = '';
+        });
+    });
+</script>
+
 @endsection
