@@ -102,9 +102,8 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Name</th>
-                        <th>Email (UPN)</th>
                         <th>Missed Days</th>
-                        <th>Logins</th>
+                        <th>Last Login</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -120,25 +119,16 @@
                         @endphp
                         <tr @if($uniqueLoginDays === 0) class="table-danger" @endif>
                             <td>{{ $user->displayName ?: 'Unknown' }}</td>
-                            <td>{{ $user->userPrincipalName ?: 'Not Set' }}</td>
                             <td>{{ $missedDays }}</td>
                             <td>
-                                <span class="badge bg-secondary">Count: {{ $user->sign_ins_count ?? 0 }}</span><br>
-                                <small>
-                                    Last: {{ optional($user->signIns->first())->date_utc
-                                        ? \Carbon\Carbon::parse($user->signIns->first()->date_utc)->format('Y-m-d H:i')
-                                        : 'N/A' }}
-                                </small>
+                                @if($user->signIns && $user->signIns->count() > 0)
+                                    {{ \Carbon\Carbon::parse($user->signIns->first()->date_utc)->format('Y-m-d H:i') }}
+                                @else
+                                    N/A
+                                @endif
                             </td>
                             <td>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="{{ route('users.show', $user->id) }}">View</a></li>
-                                    </ul>
-                                </div>
+                                <a href="{{ route('users.show', $user->id) }}" class="btn btn-sm btn-primary">View</a>
                             </td>
                         </tr>
                     @endforeach
@@ -219,9 +209,8 @@ if (response.users && response.users.length > 0) {
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Name</th>
-                                        <th>Email (UPN)</th>
                                         <th>Missed Days</th>
-                                        <th>Logins</th>
+                                        <th>Last Login</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -230,32 +219,22 @@ if (response.users && response.users.length > 0) {
                             <div class="mt-4" id="pagination"></div>
                         `);
                         response.users.forEach(function(user) {
-                            var uniqueLoginDays = user.signIns
-                                ? user.signIns.map(d => new Date(d.date_utc).toLocaleDateString()).filter((d, i, arr) => arr.indexOf(d) === i).length
+                            var userSignIns = user.sign_ins || user.signIns || [];
+                            var uniqueLoginDays = userSignIns.length > 0
+                                ? userSignIns.map(d => new Date(d.date_utc).toLocaleDateString()).filter((d, i, arr) => arr.indexOf(d) === i).length
                                 : 0;
                             var missedDays = Math.max(0, response.totalDays - uniqueLoginDays);
                             var rowClass = uniqueLoginDays === 0 ? 'table-danger' : '';
-                            var lastLogin = user.signIns && user.signIns.length > 0
-                                ? new Date(user.signIns[0].date_utc).toLocaleString()
+                            var lastLogin = userSignIns.length > 0
+                                ? new Date(userSignIns[0].date_utc).toLocaleString()
                                 : 'N/A';
 
                             var userRow = '<tr class="' + rowClass + '">' +
                                 '<td>' + (user.displayName || 'Unknown') + '</td>' +
-                                '<td>' + (user.userPrincipalName || 'Not Set') + '</td>' +
                                 '<td>' + missedDays + '</td>' +
+                                '<td>' + lastLogin + '</td>' +
                                 '<td>' +
-                                    '<span class="badge bg-secondary">Count: ' + (user.sign_ins_count || 0) + '</span><br>' +
-                                    '<small>Last: ' + lastLogin + '</small>' +
-                                '</td>' +
-                                '<td>' +
-                                    '<div class="dropdown">' +
-                                        '<button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">' +
-                                            'Actions' +
-                                        '</button>' +
-                                        '<ul class="dropdown-menu">' +
-                                            '<li><a class="dropdown-item" href="/users/' + user.id + '">View</a></li>' +
-                                        '</ul>' +
-                                    '</div>' +
+                                    '<a href="/users/' + user.id + '" class="btn btn-sm btn-primary">View</a>' +
                                 '</td>' +
                             '</tr>';
                             $('#user-table-body').append(userRow);
@@ -264,6 +243,34 @@ if (response.users && response.users.length > 0) {
                         $('.dropdown-toggle').dropdown();
                         // Append pagination links
                         $('#pagination').html(response.pagination || '');
+                        
+                        // Handle pagination clicks with AJAX
+                        $('#pagination a').on('click', function(e) {
+                            e.preventDefault();
+                            var url = $(this).attr('href');
+                            var urlParams = new URLSearchParams(url.split('?')[1]);
+                            var page = urlParams.get('page');
+                            
+                            // Update the page and make AJAX request
+                            $.ajax({
+                                url: '{{ route("dashboard") }}',
+                                method: 'GET',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                data: { 
+                                    range: $('#range').val(), 
+                                    system: $('#system').val(), 
+                                    search: $('#search').val(),
+                                    page: page
+                                },
+                                success: function(response) {
+                                    // Update the table with new data
+                                    updateTableContent(response);
+                                }
+                            });
+                        });
                     } else {
                         $('#user-table').html('<div class="alert alert-info">No users found for the selected filters.</div>');
                     }
@@ -277,6 +284,76 @@ if (response.users && response.users.length > 0) {
                     $('#user-table').html('<div class="alert alert-info">No users found for the selected filters.</div>');
                 }
             });
+        }
+
+        function updateTableContent(response) {
+            // Update summary cards
+            $('#total-users').text(response.totalUsers || 0);
+            $('#logged-in-count').text(response.loggedInCount || 0);
+            $('#not-logged-in-count').text(response.notLoggedInCount || 0);
+
+            // Update user table
+            var tbody = $('#user-table-body');
+            tbody.empty();
+            
+            if (response.users && response.users.length > 0) {
+                response.users.forEach(function(user) {
+                    var userSignIns = user.sign_ins || user.signIns || [];
+                    var uniqueLoginDays = userSignIns.length > 0
+                        ? userSignIns.map(d => new Date(d.date_utc).toLocaleDateString()).filter((d, i, arr) => arr.indexOf(d) === i).length
+                        : 0;
+                    var missedDays = Math.max(0, response.totalDays - uniqueLoginDays);
+                    var rowClass = uniqueLoginDays === 0 ? 'table-danger' : '';
+                    var lastLogin = userSignIns.length > 0
+                        ? new Date(userSignIns[0].date_utc).toLocaleString()
+                        : 'N/A';
+
+                    var userRow = '<tr class="' + rowClass + '">' +
+                        '<td>' + (user.displayName || 'Unknown') + '</td>' +
+                        '<td>' + missedDays + '</td>' +
+                        '<td>' + lastLogin + '</td>' +
+                        '<td>' +
+                            '<a href="/users/' + user.id + '" class="btn btn-sm btn-primary">View</a>' +
+                        '</td>' +
+                    '</tr>';
+                    $('#user-table-body').append(userRow);
+                });
+                // Reinitialize Bootstrap dropdowns
+                $('.dropdown-toggle').dropdown();
+                
+                // Append pagination links
+                $('#pagination').html(response.pagination || '');
+                
+                // Re-attach pagination click handlers
+                $('#pagination a').on('click', function(e) {
+                    e.preventDefault();
+                    var url = $(this).attr('href');
+                    var urlParams = new URLSearchParams(url.split('?')[1]);
+                    var page = urlParams.get('page');
+                    
+                    // Update the page and make AJAX request
+                    $.ajax({
+                        url: '{{ route("dashboard") }}',
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        data: { 
+                            range: $('#range').val(), 
+                            system: $('#system').val(), 
+                            search: $('#search').val(),
+                            page: page
+                        },
+                        success: function(response) {
+                            // Update the table with new data
+                            updateTableContent(response);
+                        }
+                    });
+                });
+            } else {
+                $('#user-table').html('<div class="alert alert-info">No users found for the selected filters.</div>');
+            }
         }
 
         // Initial load already called above

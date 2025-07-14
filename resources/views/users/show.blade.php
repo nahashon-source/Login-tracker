@@ -17,11 +17,11 @@
                 <div class="col-md-6">
                     <div class="row mb-3">
                         <div class="col-md-5 fw-bold">User Principal Name</div>
-                        <div class="col-md-7">{{ $user->userPrincipalName }}</div>
+                        <div class="col-md-7">{{ $user->displayName ?? 'N/A' }}</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-5 fw-bold">Email</div>
-                        <div class="col-md-7">{{ $user->mail1 ?? 'N/A' }}</div>
+                        <div class="col-md-7">{{ $user->userPrincipalName ?? 'N/A' }}</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-5 fw-bold">Job Title</div>
@@ -80,6 +80,34 @@
                                         <small class="text-muted">System: {{ $app->system ?? 'N/A' }}</small><br>
                                         <span class="badge bg-primary">{{ $app->usage_count }} logins</span><br>
                                         <small class="text-muted">Last used: {{ \Carbon\Carbon::parse($app->last_used)->format('M j, Y g:i A') }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Systems Used --}}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Systems Used</h5>
+        </div>
+        <div class="card-body">
+            @if ($systemsUsed->isEmpty())
+                <div class="alert alert-info">No systems usage found.</div>
+            @else
+                <div class="row">
+                    @foreach ($systemsUsed as $system)
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ $system->system ?? 'Unknown System' }}</h6>
+                                    <p class="card-text">
+                                        <span class="badge bg-secondary">{{ $system->usage_count }} logins</span><br>
+                                        <small class="text-muted">Last used: {{ \Carbon\Carbon::parse($system->last_used)->format('M j, Y g:i A') }}</small>
                                     </p>
                                 </div>
                             </div>

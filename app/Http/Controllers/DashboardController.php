@@ -54,7 +54,12 @@ class DashboardController extends Controller
         Log::debug('User query: ' . $query->toSql());
         Log::debug('Bindings: ', $query->getBindings());
 
-        $users = $query->withCount('signIns')->paginate(10);
+        $users = $query->withCount('signIns')
+                       ->with(['signIns' => function($q) {
+                           $q->orderBy('date_utc', 'desc')->limit(1);
+                       }])
+                       ->paginate(10)
+                       ->appends($request->query());
 
         if ($users->isEmpty()) {
             Log::debug('No users found. Start: ' . ($start ?? 'null') . ', End: ' . ($end ?? 'null') . ', System: ' . $selectedSystem);

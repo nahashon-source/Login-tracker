@@ -7,6 +7,8 @@ use App\Imports\SigninLogsImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
+use App\Services\ImportLockService;
 
 class ImportController extends Controller
 {
@@ -19,6 +21,18 @@ class ImportController extends Controller
             'import_file.mimetypes' => 'The file must be a CSV or TXT file.',
         ]);
 
+        $lockService = new ImportLockService();
+        
+        // Check if another import is in progress
+        if ($lockService->isLocked()) {
+            return redirect()->back()->with('error', 'Another import is already in progress. Please wait and try again.');
+        }
+
+        // Acquire lock
+        if (!$lockService->acquireLock()) {
+            return redirect()->back()->with('error', 'Unable to start import. Please try again.');
+        }
+
         try {
             $file = $request->file('import_file');
 
@@ -27,10 +41,13 @@ class ImportController extends Controller
                 'originalName' => $file->getClientOriginalName(),
             ]);
 
-            Excel::import(new UsersImport, $file);
+            DB::transaction(function () use ($file) {
+                Excel::import(new UsersImport, $file);
+            });
 
             Log::channel('import')->info('✅ Users imported successfully.');
 
+            $lockService->releaseLock();
             return redirect()->route('dashboard')->with('success', '✅ Users imported successfully!');
         } catch (\Throwable $e) {
             Log::channel('import')->error('❌ Users import failed.', [
@@ -42,6 +59,7 @@ class ImportController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
+            $lockService->releaseLock();
             return redirect()->route('dashboard')->with('error', '❌ Failed to import users: ' . $e->getMessage());
         }
     }
@@ -55,6 +73,18 @@ class ImportController extends Controller
             'import_file.mimes' => 'The file must be a CSV or TXT file.',
         ]);
 
+        $lockService = new ImportLockService();
+        
+        // Check if another import is in progress
+        if ($lockService->isLocked()) {
+            return redirect()->back()->with('error', 'Another import is already in progress. Please wait and try again.');
+        }
+
+        // Acquire lock
+        if (!$lockService->acquireLock()) {
+            return redirect()->back()->with('error', 'Unable to start import. Please try again.');
+        }
+
         try {
             $file = $request->file('import_file');
 
@@ -63,10 +93,13 @@ class ImportController extends Controller
                 'originalName' => $file->getClientOriginalName(),
             ]);
 
-            Excel::import(new SigninLogsImport, $file);
+            DB::transaction(function () use ($file) {
+                Excel::import(new SigninLogsImport, $file);
+            });
 
             Log::channel('import')->info('✅ Sign-ins imported successfully.');
 
+            $lockService->releaseLock();
             return redirect()->route('dashboard')->with('success', '✅ Sign-ins imported successfully!');
         } catch (\Throwable $e) {
             Log::channel('import')->error('❌ Sign-ins import failed.', [
@@ -78,6 +111,7 @@ class ImportController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
+            $lockService->releaseLock();
             return redirect()->route('dashboard')->with('error', '❌ Failed to import sign-ins: ' . $e->getMessage());
         }
     }
