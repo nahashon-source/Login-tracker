@@ -137,14 +137,6 @@
                                     </button>
                                     <ul class="dropdown-menu">
                                         <li><a class="dropdown-item" href="{{ route('users.show', $user->id) }}">View</a></li>
-                                        <li>
-                                            <form action="{{ route('users.destroy', $user->id) }}" method="POST"
-                                                  onsubmit="return confirm('Delete this user?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="dropdown-item text-danger">Delete</button>
-                                            </form>
-                                        </li>
                                     </ul>
                                 </div>
                             </td>
@@ -262,7 +254,6 @@ if (response.users && response.users.length > 0) {
                                         '</button>' +
                                         '<ul class="dropdown-menu">' +
                                             '<li><a class="dropdown-item" href="/users/' + user.id + '">View</a></li>' +
-                                            '<li><button class="dropdown-item text-danger" onclick="deleteUser(\'' + user.id + '\')">Delete</button></li>' +
                                         '</ul>' +
                                     '</div>' +
                                 '</td>' +

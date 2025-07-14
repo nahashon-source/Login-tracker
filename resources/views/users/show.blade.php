@@ -13,36 +13,49 @@
             <h5 class="card-title mb-4">{{ $user->displayName }}</h5>
 
             <div class="row">
-                <div class="col-md-4 fw-bold">User Principal Name</div>
-                <div class="col-md-8">{{ $user->userPrincipalName }}</div>
-
-                <div class="col-md-4 fw-bold">Email 1</div>
-                <div class="col-md-8">{{ $user->mail1 ?? 'N/A' }}</div>
-
-                <div class="col-md-4 fw-bold">Email 2</div>
-                <div class="col-md-8">{{ $user->mail2 ?? 'N/A' }}</div>
-
-                <div class="col-md-4 fw-bold">Job Title</div>
-                <div class="col-md-8">{{ $user->jobTitle ?? 'N/A' }}</div>
-
-                <div class="col-md-4 fw-bold">Department</div>
-                <div class="col-md-8">{{ $user->department ?? 'N/A' }}</div>
-
-                <div class="col-md-4 fw-bold">Office Location</div>
-                <div class="col-md-8">{{ $user->officeLocation ?? 'N/A' }}</div>
-
-                <div class="col-md-4 fw-bold">Account Enabled</div>
-                <div class="col-md-8">
-                    <span class="badge {{ $user->accountEnabled ? 'bg-success' : 'bg-danger' }}">
-                        {{ $user->accountEnabled ? 'Yes' : 'No' }}
-                    </span>
+                <!-- First Column -->
+                <div class="col-md-6">
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">User Principal Name</div>
+                        <div class="col-md-7">{{ $user->userPrincipalName }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Email</div>
+                        <div class="col-md-7">{{ $user->mail1 ?? 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Job Title</div>
+                        <div class="col-md-7">{{ $user->jobTitle ?? 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Department</div>
+                        <div class="col-md-7">{{ $user->department ?? 'N/A' }}</div>
+                    </div>
                 </div>
 
-                <div class="col-md-4 fw-bold">Directory Synced</div>
-                <div class="col-md-8">{{ $user->directorySynced ? 'Yes' : 'No' }}</div>
-
-                <div class="col-md-4 fw-bold">Created At</div>
-                <div class="col-md-8">{{ $user->createdDateTime ? \Carbon\Carbon::parse($user->createdDateTime)->format('Y-m-d') : 'N/A' }}</div>
+                <!-- Second Column -->
+                <div class="col-md-6">
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Office Location</div>
+                        <div class="col-md-7">{{ $user->officeLocation ?? 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Account Enabled</div>
+                        <div class="col-md-7">
+                            <span class="badge {{ $user->accountEnabled ? 'bg-success' : 'bg-danger' }}">
+                                {{ $user->accountEnabled ? 'Yes' : 'No' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Directory Synced</div>
+                        <div class="col-md-7">{{ $user->directorySynced ? 'Yes' : 'No' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5 fw-bold">Created At</div>
+                        <div class="col-md-7">{{ $user->createdDateTime ? \Carbon\Carbon::parse($user->createdDateTime)->format('Y-m-d') : 'N/A' }}</div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -113,15 +126,13 @@
                 @endforeach
             </tbody>
         </table>
+        
+        {{-- Pagination --}}
+        <div class="d-flex justify-content-center mt-4">
+            {{ $signIns->withQueryString()->links() }}
+        </div>
     @endif
 
-    {{-- Remove User Form --}}
-    <form method="POST" action="{{ route('users.destroy', ['user' => $user->id]) }}" class="mt-4"
-          onsubmit="return confirm('Are you sure you want to remove this user?');">
-        @csrf
-        @method('DELETE')
-        <button type="submit" class="btn btn-danger">Remove User</button>
-    </form>
 
     {{-- Back to Dashboard --}}
     <div class="mt-4">
