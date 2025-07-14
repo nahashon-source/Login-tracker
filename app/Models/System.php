@@ -34,6 +34,13 @@ class System extends Model
      * @var string
      */
     protected $keyType = 'int'; // Adjust to 'string' if systems.id is char(36)
+    
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = ['name'];
 
     /**
      * Get the users associated with this system.

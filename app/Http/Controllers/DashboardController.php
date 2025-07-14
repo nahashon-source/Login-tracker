@@ -116,7 +116,7 @@ class DashboardController extends Controller
                            }
                            $q->orderByDesc('date_utc')->limit(5);
                        }])
-                       ->paginate(10)
+                       ->paginate(17)
                        ->appends($request->query());
 
         if ($users->isEmpty()) {

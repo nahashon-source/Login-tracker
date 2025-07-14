@@ -83,7 +83,7 @@ class DashboardStatsService
             });
         }
 
-        $users = $usersQuery->orderBy('displayName')->paginate(10);
+        $users = $usersQuery->orderBy('displayName')->paginate(17);
 
         foreach ($users as $user) {
             $uniqueDays = $user->signIns->pluck('date_utc')
