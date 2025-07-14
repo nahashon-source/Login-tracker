@@ -77,7 +77,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $app->application ?? 'Unknown App' }}</h6>
                                     <p class="card-text">
-                                        <small class="text-muted">System: {{ $app->system ?? 'N/A' }}</small><br>
+                                        <small class="text-muted">Systems: {{ $app->systems ?? 'N/A' }}</small><br>
                                         <span class="badge bg-primary">{{ $app->usage_count }} logins</span><br>
                                         <small class="text-muted">Last used: {{ \Carbon\Carbon::parse($app->last_used)->format('M j, Y g:i A') }}</small>
                                     </p>

@@ -219,14 +219,15 @@ class UserController extends Controller
             ->paginate($this->perPage)
             ->withQueryString();
 
-        // Get recent applications used by this user
+        // Get recent applications used by this user (grouped by application only to avoid repetitions)
         $recentApplications = $user->signIns()
             ->whereBetween('date_utc', [$start, $end])
-            ->select('application', 'system',
+            ->select('application',
                     DB::raw('COUNT(*) as usage_count'), 
-                    DB::raw('MAX(date_utc) as last_used'))
+                    DB::raw('MAX(date_utc) as last_used'),
+                    DB::raw('GROUP_CONCAT(DISTINCT system ORDER BY system SEPARATOR ", ") as systems'))
             ->whereNotNull('application')
-            ->groupBy('application', 'system')
+            ->groupBy('application')
             ->orderBy('last_used', 'desc')
             ->limit(10)
             ->get();
