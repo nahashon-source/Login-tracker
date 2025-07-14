@@ -230,7 +230,15 @@ class UserController extends Controller
             ->groupBy('application')
             ->orderBy('last_used', 'desc')
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(function ($item) {
+                // Additional cleanup for duplicate system names
+                if ($item->systems) {
+                    $systemArray = array_unique(array_map('trim', explode(',', $item->systems)));
+                    $item->systems = implode(', ', $systemArray);
+                }
+                return $item;
+            });
 
         return view('users.show', compact('user', 'signIns', 'start', 'end', 'system', 'range', 'recentApplications'));
     }

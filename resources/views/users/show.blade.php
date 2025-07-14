@@ -77,7 +77,14 @@
                             <div class="card-body">
                                 <h5 class="card-title fs-5">{{ $app->application ?? 'Unknown App' }}</h5>
                                 <p class="card-text fs-6">
-                                    <span class="text-muted">Systems: {{ $app->systems ?? 'N/A' }}</span><br>
+                                    @php
+                                        $applicationName = $app->application ?? 'Unknown App';
+                                        $systemNames = $app->systems ?? 'N/A';
+                                        $showSystems = $systemNames !== 'N/A' && strtolower($applicationName) !== strtolower($systemNames);
+                                    @endphp
+                                    @if($showSystems)
+                                        <span class="text-muted">Systems: {{ $systemNames }}</span><br>
+                                    @endif
                                     <span class="badge bg-primary fs-6">{{ $app->usage_count }} logins</span><br>
                                     <span class="text-muted">Last used: {{ \Carbon\Carbon::parse($app->last_used)->format('M j, Y g:i A') }}</span>
                                 </p>
@@ -145,7 +152,7 @@
         </table>
         
         {{-- Pagination --}}
-        <div class="d-flex justify-content-center mt-4">
+        <div class="d-flex justify-content-center mt-4" id="pagination-container">
             {{ $signIns->withQueryString()->links() }}
         </div>
     @endif
@@ -200,6 +207,34 @@
         tableRows.forEach(row => {
             row.style.display = '';
         });
+    });
+    
+    // Prevent pagination from jumping to top
+    document.addEventListener('DOMContentLoaded', function() {
+        const paginationContainer = document.getElementById('pagination-container');
+        if (paginationContainer) {
+            paginationContainer.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' && e.target.href) {
+                    e.preventDefault();
+                    
+                    // Get the current scroll position
+                    const currentScrollPos = window.pageYOffset;
+                    
+                    // Navigate to the new page
+                    window.location.href = e.target.href;
+                    
+                    // Store scroll position to restore after page load
+                    sessionStorage.setItem('scrollPosition', currentScrollPos);
+                }
+            });
+        }
+        
+        // Restore scroll position after page load
+        const savedScrollPos = sessionStorage.getItem('scrollPosition');
+        if (savedScrollPos) {
+            window.scrollTo(0, parseInt(savedScrollPos));
+            sessionStorage.removeItem('scrollPosition');
+        }
     });
 </script>
 
