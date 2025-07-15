@@ -12,6 +12,7 @@ use App\Services\ImportLockService;
 use App\Models\User;
 use App\Models\System;
 use League\Csv\Reader;
+use Illuminate\Support\Facades\Artisan;
 
 class ImportController extends Controller
 {
@@ -101,7 +102,7 @@ class ImportController extends Controller
             });
 
             // Update user login status based on the newly imported sign-in data
-            \Artisan::call('users:update-login-status');
+            Artisan::call('users:update-login-status');
             
             Log::channel('import')->info('✅ Sign-ins imported successfully and user login status updated.');
 

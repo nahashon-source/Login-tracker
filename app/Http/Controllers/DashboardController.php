@@ -144,7 +144,7 @@ class DashboardController extends Controller
                 'rangeLabel'         => $filters['rangeLabel'],
                 'systemInput'        => $selectedSystem,
                 'systems'            => $systems,
-                'pagination'         => $users->withQueryString()->links()->render(),
+                'pagination'         => $users->withQueryString()->links()->toHtml(),
             ]);
         }
 
