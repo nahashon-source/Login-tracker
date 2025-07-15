@@ -127,31 +127,8 @@ class DashboardStatsService
         // Total users should always be the total count in the database
         $totalUsers = User::count();
         
-        // For "not logged in" calculation, get users who have used the system but didn't login in the date range
-        if ($system) {
-            // Get users who have ever used this system
-            $mappedSystems = collect(config('systemmap'))
-                ->filter(function ($mappedSystem) use ($system) {
-                    return $mappedSystem === $system;
-                })
-                ->keys()
-                ->toArray();
-            if (!empty($mappedSystems)) {
-                $usersInSystem = User::whereHas('signIns', function ($q) use ($mappedSystems) {
-                    $q->where(function ($query) use ($mappedSystems) {
-                        foreach ($mappedSystems as $mappedSystem) {
-                            $query->orWhere('application', 'LIKE', "%$mappedSystem%");
-                        }
-                    });
-                })->count();
-                $notLoggedInCount = max(0, $usersInSystem - $loggedInCount);
-            } else {
-                $notLoggedInCount = $totalUsers - $loggedInCount;
-            }
-        } else {
-            // If no system filter, use all users
-            $notLoggedInCount = $totalUsers - $loggedInCount;
-        }
+        // Calculate not logged in count - simply total users minus those who logged in during the filtered period
+        $notLoggedInCount = $totalUsers - $loggedInCount;
 
         // 🔹 All sign-ins for listing
         $signIns = DB::table('signin_logs')
